@@ -10,6 +10,7 @@ import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 
+import wandb
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
@@ -34,6 +35,7 @@ SRC_DIR = Path(__file__).resolve().parents[2]  # .../src
 sys.path.append(str(SRC_DIR))
 
 from utils.data import set_seed, sep, show_df
+from utils.wandb_utils import set_wandb
 from utils.losses import WeightedMSELoss
 from utils.train_utils import get_criterion, build_optimizer, build_scheduler, get_scaler
 from datasets.dataset import CsiroDataset
@@ -45,7 +47,6 @@ from training.train import train_one_epoch, valid_one_epoch
 import timm
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-import wandb
 
 # =========================================================
 # Distributed helpers
@@ -264,15 +265,15 @@ def main(cfg: DictConfig) -> None:
 
         # wandb（rank0のみ）
         run = None
-        if bool(cfg_train.use_wandb) and is_main:
+        run_name = f"{cfg_train.exp}_fold{fold}"
+        if cfg_train.use_wandb and is_main:
             run = wandb.init(
-                project=str(cfg_train.competition),
-                entity=str(cfg_train.author),
-                name=f"{exp_name}_fold{fold}",
-                group=str(exp_name),
-                config=OmegaConf.to_container(cfg_train, resolve=True),
-                reinit=True,
+                project=cfg_train.competition,
+                entity=cfg_train.author,
+                name=run_name,
+                config=OmegaConf.to_container(cfg["100_train_model"], resolve=True),
             )
+            print(f"[INFO] WandB logging enabled. run_name={run_name}")
 
         # early stopping
         patience = int(cfg_train.early_stopping.patience) if bool(cfg_train.early_stopping.enabled) else 0

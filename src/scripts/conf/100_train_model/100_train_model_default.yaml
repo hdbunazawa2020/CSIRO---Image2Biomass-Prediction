@@ -109,7 +109,7 @@ optimizer:
 
 scheduler:
   name: warmup_cosine
-  base_lr: ${optimizer.base_lr}
+  base_lr: 1e-4
   max_lr: 5e-4
   min_lr: 1e-6
   warmup_ratio: 0.05   # warmup_steps が null のときに使う
