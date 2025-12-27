@@ -1,0 +1,23 @@
+author: hidebu
+clover_target: Dry_Clover_g
+competition: Csiro-Image2BiomassPrediction
+debug: false
+exp: 000_preprocess_ver00
+fold_col: Fold
+group_cols:
+- State
+- Sampling_Date
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+n_splits: 5
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+pivot_csv_name: df_pivot.csv
+seed: 1129
+stratify_add_clover_flag: true
+stratify_bins_candidates:
+- 8
+- 6
+- 5
+- 4
+- 3
+stratify_target: Dry_Total_g
+stratify_use_log1p: true

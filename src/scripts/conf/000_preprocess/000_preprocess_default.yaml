@@ -1,0 +1,28 @@
+exp: 000_preprocess_ver00 # TODO: 毎回、実験の連番を変える
+seed: 1129
+# for Debug
+debug: false
+author: hidebu
+competition: Csiro-Image2BiomassPrediction # TODO: コンペ名を入れる
+# data
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+
+# =========================
+# CV / Fold settings
+# =========================
+n_splits: 5          # fold数
+fold_col: Fold       # 追加する列名
+# group（リーク防止）：この列を結合して1グループとして扱う - 推奨：State + Sampling_Date -
+group_cols:
+  - State
+  - Sampling_Date
+# stratify（回帰なのでbinningで近似）
+stratify_target: Dry_Total_g        # 代表ターゲット（例：Dry_Total_g or GDM_g）
+stratify_use_log1p: true            # 裾が重いのでlog1pしてから分位ビン推奨
+stratify_bins_candidates: [8, 6, 5, 4, 3]  # 失敗したら順に落としていく
+# 追加のstratify補助（ゼロが多いターゲット対策）
+stratify_add_clover_flag: true
+clover_target: Dry_Clover_g
+# output file name（train_pivot_dfの保存名）
+pivot_csv_name: df_pivot.csv

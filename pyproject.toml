@@ -34,4 +34,6 @@ dependencies = [
     "xgboost==2.0.3",
     "catboost==1.2.8",
     "schedulefree>=1.4.1",
-    ]
+    "timm>=1.0.22",
+    "albumentations>=2.0.8",
+]

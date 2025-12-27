@@ -1,182 +1,277 @@
+# -*- coding: utf-8 -*-
+"""
+train_utils.py
+
+学習まわりで共通に使うユーティリティをまとめたモジュールです。
+
+このファイルの設計方針
+- 「設定(cfg)から作る」系の関数は build_* として統一する
+- 余計な依存や重複 import は避ける
+- 例外メッセージは、設定ミスがすぐ分かるように具体的に出す
+
+提供機能
+- get_criterion: 文字列指定で損失関数を返す（最小構成）
+- build_optimizer: cfg.optimizer から optimizer を作る
+- build_scheduler: cfg.scheduler から scheduler を作る（warmup_cosine 等）
+- get_scaler: AMP用 GradScaler を返す
+
+Notes:
+- scheduler は「iteration step（1 batchごと）」で step() する前提のもの（warmup_cosine）と、
+  「epoch ごとに metric を渡して step(metric) する」もの（plateau）で使い方が異なります。
+  ※plateau を使う場合は学習ループ側で対応してください。
+"""
+
+from __future__ import annotations
+
+from typing import Optional, Tuple
+import math
+
 import torch
 import torch.nn as nn
-from torch.optim import Adam, AdamW, SGD
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, StepLR, ReduceLROnPlateau
-from torch.cuda.amp import autocast, GradScaler
-import math
-from torch.optim.lr_scheduler import _LRScheduler
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler, LambdaLR, ReduceLROnPlateau, StepLR
 
-import torch
-import torch.nn.functional as F
-import numpy as np
-from torch.cuda.amp import autocast
 
-def get_criterion(criterion):
-    if criterion == "l1":
+# =========================================================
+# Loss
+# =========================================================
+def get_criterion(criterion: str) -> nn.Module:
+    """損失関数（criterion）を返す。
+
+    Args:
+        criterion: 損失名。
+            - "l1" / "mae" : L1Loss
+            - "mse"        : MSELoss
+            - "huber"      : HuberLoss (delta=1.0)
+
+    Returns:
+        torch.nn.Module: 損失関数モジュール。
+
+    Raises:
+        ValueError: 未対応の損失名が指定された場合。
+    """
+    name = str(criterion).lower()
+
+    if name in ["l1", "mae"]:
         return nn.L1Loss()
-    elif criterion == "mse":
+
+    if name in ["mse", "l2"]:
         return nn.MSELoss()
-    elif criterion == "huber":
-        return nn.HuberLoss(delta=1.0)  # PyTorch 2.0+￥
-    else:
-        raise ValueError(f"Unsupported loss function: {criterion}")
 
-def get_optimizer(config, model):
-    """オプティマイザの取得"""
-    if config.optimizer.name == "adam":
-        return Adam(model.parameters(), lr=config.optimizer.lr)
-    elif config.optimizer.name == "adamw":
-        return AdamW(model.parameters(), lr=config.optimizer.lr, weight_decay=config.optimizer.weight_decay, fused=True)
-    elif config.optimizer.name == "sgd":
-        return SGD(model.parameters(), lr=config.optimizer.lr, momentum=config.optimizer.momentum, weight_decay=config.optimizer.weight_decay)
-    else:
-        raise ValueError(f"Unsupported optimizer: {config.optimizer.name}")
+    if name in ["huber", "smoothl1"]:
+        # PyTorch 2.x では nn.HuberLoss が利用可能
+        return nn.HuberLoss(delta=1.0)
 
-class ConstantCosineLR(_LRScheduler):
+    raise ValueError(
+        f"Unsupported loss function: '{criterion}'. "
+        f"Supported: l1/mae, mse/l2, huber/smoothl1"
+    )
+
+
+# =========================================================
+# Optimizer
+# =========================================================
+def build_optimizer(cfg, model: nn.Module) -> Optimizer:
+    """cfg.optimizer から optimizer を生成する。
+
+    想定する cfg 例（YAML）:
+        optimizer:
+          name: adamw
+          lr: 1e-4
+          weight_decay: 1e-5
+          betas: [0.9, 0.999]   # optional
+          momentum: 0.9         # SGD用 optional
+          nesterov: true        # SGD用 optional
+
+    Args:
+        cfg: OmegaConf / SimpleNamespace など。
+        model: 学習対象のモデル。
+
+    Returns:
+        torch.optim.Optimizer: optimizer。
+
+    Raises:
+        ValueError: 未対応 optimizer 名の場合。
     """
-    前半は一定、後半はCosineAnnealingする学習率スケジューラ。
+    name = str(cfg.optimizer.name).lower()
+    lr = float(cfg.optimizer.lr)
+    wd = float(getattr(cfg.optimizer, "weight_decay", 0.0))
+    betas = tuple(getattr(cfg.optimizer, "betas", (0.9, 0.999)))
+
+    if name == "adamw":
+        return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd, betas=betas)
+
+    if name == "adam":
+        return torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd, betas=betas)
+
+    if name == "sgd":
+        momentum = float(getattr(cfg.optimizer, "momentum", 0.9))
+        nesterov = bool(getattr(cfg.optimizer, "nesterov", False))
+        return torch.optim.SGD(
+            model.parameters(),
+            lr=lr,
+            weight_decay=wd,
+            momentum=momentum,
+            nesterov=nesterov,
+        )
+
+    raise ValueError(
+        f"Unknown optimizer: '{name}'. Supported: adamw, adam, sgd"
+    )
+
+
+# =========================================================
+# Scheduler
+# =========================================================
+def build_scheduler(cfg, optimizer: Optimizer, total_steps: int) -> Optional[LRScheduler]:
+    """cfg.scheduler から scheduler を生成する。
+
+    warmup_cosine（推奨）:
+      - iteration step（= batchごと）に scheduler.step() する前提
+      - base_lr, max_lr, min_lr, warmup_ratio(or warmup_steps) を使う
+
+    plateau:
+      - epochごとに scheduler.step(metric) が必要
+      - 学習コード側で valid metric を渡して呼び出してください
+
+    step:
+      - epochごとに scheduler.step() が必要
+
+    Args:
+        cfg: OmegaConf / SimpleNamespace など。
+        optimizer: optimizer。
+        total_steps: 1epochのsteps×epochsなど（iteration scheduler 用）
+
+    Returns:
+        LRScheduler or None
+
+    Raises:
+        ValueError: scheduler 名が未対応の場合。
     """
-    def __init__(self, optimizer, total_steps, pct_cosine=0.5, last_epoch=-1):
-        self.total_steps = total_steps
-        self.milestone = int(total_steps * (1 - pct_cosine))
-        self.cosine_steps = max(self.total_steps - self.milestone, 1)
-        self.min_lr = 0
-        super().__init__(optimizer, last_epoch)
+    name = str(cfg.scheduler.name).lower()
 
-    def get_lr(self):
-        step = self.last_epoch + 1
-        if step <= self.milestone:
-            factor = 1.0
-        else:
-            s = step - self.milestone
-            factor = 0.5 * (1 + math.cos(math.pi * s / self.cosine_steps))
-        return [base_lr * factor for base_lr in self.base_lrs]
-
-import math
-from torch.optim.lr_scheduler import LambdaLR
-
-class WarmupCosineLR(LambdaLR):
-    def __init__(
-        self,
-        optimizer,
-        total_steps: int,
-        warmup_steps: int = 0,
-        base_lr: float = 1e-5,
-        max_lr: float = 1e-3,
-        min_lr: float = 0.0,
-        hold_min_steps: int = 0,      # ★ 追加: min_lr でホールドするステップ数（0なら無制限にホールド）
-        last_epoch: int = -1,
-    ):
-        if total_steps <= 0:
-            raise ValueError(f"total_steps must be positive, got {total_steps}")
-        if warmup_steps is None:
-            warmup_steps = int(total_steps * 0.05)
-        if warmup_steps >= total_steps:
-            raise ValueError(f"warmup_steps({warmup_steps}) must be < total_steps({total_steps})")
-        if base_lr <= 0:
-            raise ValueError(f"base_lr must be positive, got {base_lr}")
-
-        # コサイン減衰に使えるステップ数（warmup と hold を除いた部分）
-        cosine_steps = max(1, total_steps - warmup_steps - max(0, hold_min_steps))
-
-        def lr_lambda(current_step: int):
-            # ① Warmup フェーズ
-            if current_step < warmup_steps:
-                # 線形ウォームアップ: base_lr → max_lr
-                # 比率として返すので base_lr で割る
-                lr = base_lr + (max_lr - base_lr) * (current_step / max(1, warmup_steps))
-                return lr / base_lr
-
-            # ② min_lr でホールドするフェーズ
-            #    total_steps - hold_min_steps 以降はずっと min_lr
-            if current_step >= total_steps - max(0, hold_min_steps):
-                return min_lr / base_lr
-
-            # ③ コサイン減衰フェーズ
-            #    warmup_steps ～ (total_steps - hold_min_steps) の間で cos 減衰
-            step_in_cos = current_step - warmup_steps
-            progress = step_in_cos / float(cosine_steps)
-            # 念のため [0, 1] にクランプ
-            progress = min(max(progress, 0.0), 1.0)
-
-            cosine = 0.5 * (1.0 + math.cos(math.pi * progress))  # 1 → 0 へ
-            target_lr = min_lr + (max_lr - min_lr) * cosine      # max_lr → min_lr
-            return target_lr / base_lr
-
-        super().__init__(optimizer, lr_lambda, last_epoch=last_epoch)
-
-import math
-from torch.optim.lr_scheduler import (
-    CosineAnnealingWarmRestarts, StepLR, ReduceLROnPlateau, LambdaLR
-)
-from utils.train_utils import WarmupCosineLR, ConstantCosineLR 
-
-def get_scheduler(config, optimizer, train_loader_len=None):
-    name = config.scheduler.name.lower()
-
-    epochs = getattr(config, "epochs", None)
-    grad_accum = getattr(config, "grad_accum_steps", 1)
-    if train_loader_len is None:
-        raise ValueError("train_loader_len (len(train_dl)) を get_scheduler に渡してください。")
-
-    # --- total_steps の決定 ---
-    if getattr(config.scheduler, "total_steps", None) is not None:
-        total_steps = config.scheduler.total_steps   # ★ yamlで指定した 8050 をそのまま使う
-    else:
-        total_steps = math.ceil(train_loader_len / grad_accum) * epochs
-        config.scheduler.total_steps = total_steps   # 自動で保存（ログ用）
-
-    if name == "none":
+    if name in ["none", "null", "off"]:
         return None
 
-    elif name == "cosine":
-        return CosineAnnealingWarmRestarts(
-            optimizer,
-            T_0=config.scheduler.T_0,
-            T_mult=config.scheduler.T_mult,
-            eta_min=config.scheduler.eta_min,
-        )
+    # -------------------------
+    # warmup + cosine decay
+    # -------------------------
+    if name == "warmup_cosine":
+        base_lr = float(cfg.scheduler.base_lr)
+        max_lr = float(cfg.scheduler.max_lr)
+        min_lr = float(cfg.scheduler.min_lr)
 
-    elif name == "constantcosine":
-        return ConstantCosineLR(
-            optimizer,
-            total_steps=total_steps,
-            pct_cosine=config.scheduler.pct_cosine,
-        )
+        # warmup_steps が指定されていなければ warmup_ratio から作る
+        warmup_steps = getattr(cfg.scheduler, "warmup_steps", None)
+        if warmup_steps is None:
+            warmup_ratio = float(getattr(cfg.scheduler, "warmup_ratio", 0.05))
+            warmup_steps = int(total_steps * warmup_ratio)
+        warmup_steps = int(warmup_steps)
 
-    elif name == "warmup_cosine":
-        return WarmupCosineLR(
-            optimizer=optimizer,
-            total_steps=total_steps,
-            warmup_steps=config.scheduler.warmup_steps,
-            base_lr=config.scheduler.base_lr,
-            max_lr=config.scheduler.max_lr,
-            min_lr=config.scheduler.min_lr,
-            hold_min_steps=getattr(config.scheduler, "hold_min_steps", 0),  # ★ 追加
-            last_epoch=getattr(config.scheduler, "last_epoch", -1),
-        )
+        # total_steps を明示したい場合（上書き）
+        if getattr(cfg.scheduler, "total_steps", None) is not None:
+            total_steps = int(cfg.scheduler.total_steps)
 
-    elif name == "step":
-        return StepLR(
-            optimizer,
-            step_size=config.scheduler.step_size,
-            gamma=config.scheduler.gamma,
-        )
+        if total_steps <= 0:
+            raise ValueError(f"total_steps must be > 0, got {total_steps}")
+        if base_lr <= 0:
+            raise ValueError(f"base_lr must be > 0, got {base_lr}")
 
-    elif name == "plateau":
+        # LambdaLR は「倍率」を返す必要がある
+        def lr_lambda(step: int) -> float:
+            # step: 0..total_steps-1 を想定
+            step = int(step)
+
+            # total_steps=1 のような極端ケースの安全策
+            if total_steps <= 1:
+                return 1.0
+
+            # warmup が total_steps を超えるケースの安全策
+            w_steps = min(max(0, warmup_steps), total_steps)
+
+            if w_steps > 0 and step < w_steps:
+                # linear warmup: base_lr -> max_lr
+                t = step / float(max(1, w_steps))
+                lr = base_lr + (max_lr - base_lr) * t
+            else:
+                # cosine decay: max_lr -> min_lr
+                # t は 0..1 に正規化
+                denom = float(max(1, total_steps - w_steps))
+                t = (step - w_steps) / denom
+                t = min(max(t, 0.0), 1.0)
+
+                cosine = 0.5 * (1.0 + math.cos(math.pi * t))
+                lr = min_lr + (max_lr - min_lr) * cosine
+
+            return lr / base_lr
+
+        # optimizer の lr を base_lr に揃える（lambdaの前提が崩れるのを防ぐ）
+        for pg in optimizer.param_groups:
+            pg["lr"] = base_lr
+
+        return LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+    # -------------------------
+    # ReduceLROnPlateau
+    # -------------------------
+    if name == "plateau":
+        mode = str(getattr(cfg.scheduler, "mode", "min"))
+        factor = float(getattr(cfg.scheduler, "factor", 0.5))
+        patience = int(getattr(cfg.scheduler, "patience", 5))
         return ReduceLROnPlateau(
             optimizer,
-            mode=config.scheduler.mode,
-            factor=config.scheduler.factor,
-            patience=config.scheduler.patience,
+            mode=mode,
+            factor=factor,
+            patience=patience,
         )
 
-    else:
-        raise ValueError(f"Unsupported scheduler: {name}")
+    # -------------------------
+    # StepLR
+    # -------------------------
+    if name == "step":
+        step_size = int(getattr(cfg.scheduler, "step_size", 5))
+        gamma = float(getattr(cfg.scheduler, "gamma", 0.5))
+        return StepLR(optimizer, step_size=step_size, gamma=gamma)
 
-from torch.amp import GradScaler
-def get_scaler(config):
-    """AMP用GradScalerの取得（configに応じて切り替え可能）"""
-    # return GradScaler(enabled=getattr(config, "use_amp", True))
-    return GradScaler(device=config.device, enabled=getattr(config, "use_amp", True))
+    raise ValueError(
+        f"Unknown scheduler: '{name}'. Supported: warmup_cosine, plateau, step, none"
+    )
+
+
+# =========================================================
+# AMP scaler
+# =========================================================
+def get_scaler(cfg) -> "torch.amp.GradScaler":
+    """AMP用の GradScaler を返す。
+
+    Args:
+        cfg: config。以下の属性を参照します。
+            - cfg.use_amp: bool
+            - cfg.device: "cuda", "cuda:0", "cpu" など（あれば）
+
+    Returns:
+        torch.amp.GradScaler:
+            GPUなら device="cuda"、CPUなら device="cpu" を自動選択した GradScaler。
+
+    Notes:
+        - torch.amp.GradScaler は PyTorch 2.x 系で推奨されるAPIです。
+        - device に "cuda:0" のような指定が来ても、GradScaler は "cuda" / "cpu" を期待するため、
+          ここで正規化しています。
+    """
+    enabled = bool(getattr(cfg, "use_amp", True))
+
+    # cfg.device が "cuda:0" のような文字列でも、GradScaler には "cuda" / "cpu" を渡す
+    device_str = str(getattr(cfg, "device", "cuda"))
+    if ("cuda" in device_str) and torch.cuda.is_available():
+        scaler_device = "cuda"
+    else:
+        scaler_device = "cpu"
+
+    # torch.amp.GradScaler（device引数あり）
+    try:
+        from torch.amp import GradScaler
+        return GradScaler(device=scaler_device, enabled=enabled)
+    except Exception:
+        # 古い環境向けフォールバック（cuda専用）
+        from torch.cuda.amp import GradScaler
+        return GradScaler(enabled=enabled)

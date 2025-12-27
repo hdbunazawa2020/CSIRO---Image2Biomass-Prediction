@@ -1,0 +1,128 @@
+# ==========
+# general
+# ==========
+exp: 100_train_exp000   # TODO: 実験連番
+seed: 1129
+debug: false
+device: cuda
+use_amp: true
+num_workers: 12
+pin_memory: true
+persistent_workers: true
+# WandB
+use_wandb: true
+competition: Csiro-Image2BiomassPrediction
+author: hidebu
+wandb_log_interval_steps: 100
+# DDP
+ddp:
+  enabled: false
+  backend: nccl
+  find_unused_parameters: false
+
+# ==========
+# paths
+# ==========
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+preprocess_ver: 000_preprocess_ver00
+pivot_csv_name: df_pivot.csv
+
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
+
+# ==========
+# CV
+# ==========
+fold_col: Fold
+folds: [0]          # [0,1,2,3,4] など
+
+# =======================================
+# targets (order MUST match metric.py)
+# =======================================
+target_cols:
+  - Dry_Green_g
+  - Dry_Clover_g
+  - Dry_Dead_g
+  - GDM_g
+  - Dry_Total_g
+
+use_log1p_target: true
+
+# =======================
+# image / augmentation
+# =======================
+img_size: 224
+normalize:
+  mean: [0.485, 0.456, 0.406]
+  std:  [0.229, 0.224, 0.225]
+
+augment:
+  train:
+    hflip_p: 0.5
+    vflip_p: 0.0
+    rotate_limit: 10
+    shift_scale_rotate_p: 0.2
+    color_jitter_p: 0.2
+  valid:
+    # validは resize + normalize のみ
+    dummy: 0
+
+# ==========
+# model
+# ==========
+model:
+  name: timm_image_tabular  # timm_image_only | timm_image_tabular
+  backbone: convnext_base
+  pretrained: true
+  in_chans: 3
+  drop_rate: 0.0
+  drop_path_rate: 0.0
+
+# ==========
+# training
+# ==========
+train:
+  epochs: 20
+  batch_size: 32
+  grad_accum_steps: 1
+  max_norm: 3.0
+  log_interval: 50
+  val_interval: 1
+
+early_stopping:
+  enabled: true
+  patience: 10
+  min_delta: 0.0
+
+ema:
+  enabled: true
+  decay: 0.95
+
+# =========================
+# optimizer & scheduler
+# =========================
+optimizer:
+  name: adamw
+  base_lr: 1e-4
+  weight_decay: 1e-5
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: warmup_cosine
+  base_lr: ${optimizer.base_lr}
+  max_lr: 5e-4
+  min_lr: 1e-6
+  warmup_ratio: 0.05   # warmup_steps が null のときに使う
+  warmup_steps: null
+  total_steps: null
+
+# ===================================================
+# loss / metric weights (same order as target_cols)
+# ===================================================
+loss:
+  name: weighted_mse
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+
+metric:
+  name: weighted_r2
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5]
