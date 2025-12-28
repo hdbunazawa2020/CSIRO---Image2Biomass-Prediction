@@ -30,7 +30,7 @@ def build_transforms(cfg, is_train: bool):
             min_height=img_size,
             min_width=img_size,
             border_mode=0,   # cv2.BORDER_CONSTANT
-            value=0,
+            fill=0,
         ),
     ]
 
@@ -51,7 +51,7 @@ def build_transforms(cfg, is_train: bool):
                 scale_limit=0.10,
                 rotate_limit=rotate_limit,
                 border_mode=0,
-                value=0,
+                fill=0,
                 p=ssr_p,
             ),
             A.ColorJitter(

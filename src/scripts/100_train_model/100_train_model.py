@@ -27,7 +27,6 @@ SRC_DIR = Path(__file__).resolve().parents[2]  # .../src
 sys.path.append(str(SRC_DIR))
 
 from utils.data import set_seed
-from utils.metric import weighted_r2_score
 
 # ===== import from src  ===== 
 import sys
@@ -179,8 +178,6 @@ def main(cfg: DictConfig) -> None:
         train_ds = CsiroDataset(
             df=trn_df,
             image_root=str(cfg_train.input_dir),
-            id_col="image_id",
-            image_col="image_path",
             target_cols=cfg_train.target_cols,
             transform=train_tfm,
             use_log1p_target=bool(cfg_train.use_log1p_target),
@@ -189,8 +186,6 @@ def main(cfg: DictConfig) -> None:
         valid_ds = CsiroDataset(
             df=val_df,
             image_root=str(cfg_train.input_dir),
-            id_col="image_id",
-            image_col="image_path",
             target_cols=cfg_train.target_cols,
             transform=valid_tfm,
             use_log1p_target=bool(cfg_train.use_log1p_target),
