@@ -1,58 +1,66 @@
-# -*- coding: utf-8 -*-
-"""
-metric.py
-
-本コンペで使用する評価指標の計算関数をまとめます。
-"""
-
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 import numpy as np
 
-
-def weighted_r2_score(
+def global_weighted_r2_score(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    weights: Optional[np.ndarray] = None,
-) -> Tuple[float, np.ndarray]:
-    """ターゲットごとのR2と、その重み付き平均（weighted_r2）を計算する。
+    weights: np.ndarray,
+) -> float:
+    """公式定義に合わせた「グローバル重み付きR²」を計算する。
 
     Args:
-        y_true: 正解値。shape = (N, K)
-        y_pred: 予測値。shape = (N, K)
-        weights: 各ターゲットの重み。shape = (K,)
-            None の場合はコンペ既定値 [0.1, 0.1, 0.1, 0.2, 0.5] を使用。
+        y_true: 正解値 (N, K)
+        y_pred: 予測値 (N, K)
+        weights: ターゲット重み (K,)
+            target_cols の順序に対応させる（重要）
 
     Returns:
-        weighted_r2: 重み付きR2（float）
-        r2_scores: ターゲットごとのR2。shape = (K,)
+        float: global weighted R²
 
     Notes:
-        - ss_tot が 0（全て同じ値）になるターゲットは R2 を 0.0 とします。
+        - 全(N*K)行を一つに並べて、行ごとに target type の重みを適用した R²。
+        - μ（平均との差）は「重み付き平均」を使用。
     """
     y_true = np.asarray(y_true, dtype=np.float64)
     y_pred = np.asarray(y_pred, dtype=np.float64)
+    weights = np.asarray(weights, dtype=np.float64)
 
     if y_true.shape != y_pred.shape:
-        raise ValueError(f"y_true.shape != y_pred.shape: {y_true.shape} vs {y_pred.shape}")
+        raise ValueError(f"shape mismatch: {y_true.shape} vs {y_pred.shape}")
 
     n, k = y_true.shape
-
-    if weights is None:
-        weights = np.array([0.1, 0.1, 0.1, 0.2, 0.5], dtype=np.float64)
-    else:
-        weights = np.asarray(weights, dtype=np.float64)
-
     if weights.shape[0] != k:
         raise ValueError(f"weights length mismatch: expected {k}, got {weights.shape[0]}")
 
-    # 各ターゲットのR2をベクトル化して計算
-    ss_res = np.sum((y_true - y_pred) ** 2, axis=0)
-    mean_true = np.mean(y_true, axis=0)
-    ss_tot = np.sum((y_true - mean_true) ** 2, axis=0)
+    # flatten（row-major）に合わせて重みも N回繰り返す
+    w_flat = np.tile(weights, n)                 # (N*K,)
+    yt = y_true.reshape(-1)                      # (N*K,)
+    yp = y_pred.reshape(-1)                      # (N*K,)
 
-    r2_scores = np.where(ss_tot > 0, 1.0 - ss_res / ss_tot, 0.0)
+    # 重み付き平均
+    mu = np.sum(w_flat * yt) / np.sum(w_flat)
 
-    weighted_r2 = float(np.sum(r2_scores * weights) / np.sum(weights))
-    return weighted_r2, r2_scores.astype(np.float64)
+    ss_res = np.sum(w_flat * (yt - yp) ** 2)
+    ss_tot = np.sum(w_flat * (yt - mu) ** 2)
+
+    if ss_tot <= 0:
+        return 0.0
+    return float(1.0 - ss_res / ss_tot)
+
+
+def r2_per_target(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+    """ターゲットごとのR²（デバッグ/分析用）"""
+    y_true = np.asarray(y_true, dtype=np.float64)
+    y_pred = np.asarray(y_pred, dtype=np.float64)
+    n, k = y_true.shape
+    out = []
+    for j in range(k):
+        yt = y_true[:, j]
+        yp = y_pred[:, j]
+        ss_res = np.sum((yt - yp) ** 2)
+        ss_tot = np.sum((yt - np.mean(yt)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+        out.append(r2)
+    return np.asarray(out, dtype=np.float64)
