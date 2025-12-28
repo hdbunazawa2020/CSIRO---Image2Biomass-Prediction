@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 100_train_exp001   # TODO: 実験連番
+exp: 100_train_exp003   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -82,7 +82,7 @@ model:
 # training
 # ==========
 train:
-  epochs: 20
+  epochs: 500
   batch_size: 32
   grad_accum_steps: 1
   max_norm: 3.0
@@ -91,7 +91,7 @@ train:
 
 early_stopping:
   enabled: true
-  patience: 10
+  patience: 1000
   min_delta: 0.0
 
 ema:
