@@ -21,21 +21,3 @@ def set_wandb(config):
 
     # WandBの初期化（必要であれば）
     wandb.login()
-
-from tqdm import tqdm
-def set_wandb_table(oof_df, columns):
-    # ✨ W&B: Create a Table to store predictions for each test step
-    table = wandb.Table(columns=columns)
-    obj_cols = oof_df.select_dtypes(include=['object']).columns.tolist()
-
-    # tqdmで進捗バーを表示しながらデータを処理
-    for i, (index, row) in enumerate(tqdm(oof_df.iterrows(), total=len(oof_df))):
-        row_data = []
-        for col in columns:
-            if col in obj_cols:
-                row_data.append(str(row[col]))
-            else:
-                row_data.append(row[col])
-        table.add_data(*row_data) 
-    # Log the table to W&B
-    wandb.log({"oof_table": table})

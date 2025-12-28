@@ -1,26 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-train_utils.py
-
-学習まわりで共通に使うユーティリティをまとめたモジュールです。
-
-このファイルの設計方針
-- 「設定(cfg)から作る」系の関数は build_* として統一する
-- 余計な依存や重複 import は避ける
-- 例外メッセージは、設定ミスがすぐ分かるように具体的に出す
-
-提供機能
-- get_criterion: 文字列指定で損失関数を返す（最小構成）
-- build_optimizer: cfg.optimizer から optimizer を作る
-- build_scheduler: cfg.scheduler から scheduler を作る（warmup_cosine 等）
-- get_scaler: AMP用 GradScaler を返す
-
-Notes:
-- scheduler は「iteration step（1 batchごと）」で step() する前提のもの（warmup_cosine）と、
-  「epoch ごとに metric を渡して step(metric) する」もの（plateau）で使い方が異なります。
-  ※plateau を使う場合は学習ループ側で対応してください。
-"""
-
 from __future__ import annotations
 
 from typing import Optional, Tuple
@@ -30,7 +7,6 @@ import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler, LambdaLR, ReduceLROnPlateau, StepLR
-
 
 # =========================================================
 # Loss
@@ -94,7 +70,7 @@ def build_optimizer(cfg, model: nn.Module) -> Optimizer:
         ValueError: 未対応 optimizer 名の場合。
     """
     name = str(cfg.optimizer.name).lower()
-    lr = float(cfg.optimizer.lr)
+    lr = float(cfg.optimizer.base_lr)
     wd = float(getattr(cfg.optimizer, "weight_decay", 0.0))
     betas = tuple(getattr(cfg.optimizer, "betas", (0.9, 0.999)))
 
