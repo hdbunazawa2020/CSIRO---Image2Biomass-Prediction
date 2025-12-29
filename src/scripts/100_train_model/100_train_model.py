@@ -36,6 +36,7 @@ sys.path.append(str(SRC_DIR))
 from utils.data import set_seed, sep, show_df
 from utils.wandb_utils import set_wandb
 from utils.losses import WeightedMSELoss
+from utils.losses import MixedLogRawLoss
 from utils.train_utils import get_criterion, build_optimizer, build_scheduler, get_scaler
 from datasets.dataset import CsiroDataset
 from datasets.transforms import build_transforms
@@ -154,8 +155,16 @@ def main(cfg: DictConfig) -> None:
     valid_tfm = build_transforms(cfg_train, is_train=False)
 
     # loss
-    loss_fn = WeightedMSELoss(list(cfg_train.loss.weights)).to(device)
-
+    # loss_fn = WeightedMSELoss(list(cfg_train.loss.weights)).to(device)
+    loss_fn = MixedLogRawLoss(
+        weights=list(cfg_train.loss.weights),
+        alpha_raw=float(cfg_train.loss.alpha_raw),
+        raw_loss=str(cfg_train.loss.raw_loss),
+        raw_huber_beta=float(cfg_train.loss.raw_huber_beta),
+        log_clip_min=float(cfg_train.loss.log_clip_min),
+        log_clip_max=float(cfg_train.loss.log_clip_max),
+        warmup_epochs=int(cfg_train.loss.alpha_warmup_epochs),
+    ).to(device)
     # folds
     folds = list(cfg_train.folds)
 

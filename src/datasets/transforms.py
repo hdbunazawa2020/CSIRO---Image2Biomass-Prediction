@@ -42,7 +42,6 @@ def build_transforms(cfg, is_train: bool):
         rotate_limit = int(getattr(aug, "rotate_limit", 10))
         ssr_p = float(getattr(aug, "shift_scale_rotate_p", 0.2))
         cj_p = float(getattr(aug, "color_jitter_p", 0.2))
-
         train_aug = [
             A.HorizontalFlip(p=hflip_p),
             A.VerticalFlip(p=vflip_p),

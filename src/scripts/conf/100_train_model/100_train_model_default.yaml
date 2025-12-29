@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 100_train_exp003   # TODO: 実験連番
+exp: 100_train_exp007   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -59,7 +59,7 @@ normalize:
 augment:
   train:
     hflip_p: 0.5
-    vflip_p: 0.0
+    vflip_p: 0.5
     rotate_limit: 10
     shift_scale_rotate_p: 0.2
     color_jitter_p: 0.2
@@ -71,7 +71,6 @@ augment:
 # model
 # ==========
 model:
-  name: timm_image_tabular  # timm_image_only | timm_image_tabular
   backbone: convnext_base
   pretrained: true
   in_chans: 3
@@ -82,7 +81,7 @@ model:
 # training
 # ==========
 train:
-  epochs: 500
+  epochs: 100
   batch_size: 32
   grad_accum_steps: 1
   max_norm: 3.0
@@ -103,15 +102,15 @@ ema:
 # =========================
 optimizer:
   name: adamw
-  base_lr: 1e-4
-  weight_decay: 1e-5
+  base_lr: 1e-4 #  1e-4
+  weight_decay: 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
   base_lr: 1e-4
-  max_lr: 5e-4
-  min_lr: 1e-6
+  max_lr: 1e-4 #  5e-4
+  min_lr: 1e-4 # 1e-6
   warmup_ratio: 0.05   # warmup_steps が null のときに使う
   warmup_steps: null
   total_steps: null
@@ -119,9 +118,23 @@ scheduler:
 # ===================================================
 # loss / metric weights (same order as target_cols)
 # ===================================================
+# loss:
+#   name: weighted_mse
+#   weights: [0.1, 0.1, 0.1, 0.2, 0.5]
 loss:
-  name: weighted_mse
+  name: mixed_log_raw
   weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+  # ★ まずは小さめから（rawのスケールが大きいので）
+  alpha_raw: 0.05
+  alpha_warmup_epochs: 10
+  # まずはMSE（高値域を強く詰めたい）
+  raw_loss: mse
+  raw_huber_beta: 5.0  # raw_loss=huberの時だけ有効
+  log_clip_min: -20.0
+  log_clip_max: 20.0
+# raw_loss: huber
+# raw_huber_beta: 10.0
+# alpha_raw: 0.1
 
 metric:
   name: weighted_r2
