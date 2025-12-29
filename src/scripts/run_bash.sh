@@ -12,7 +12,7 @@ MASTER_PORT=29500
 export WANDB_API_KEY="local-73f67a791cf323a6e8cd6e10844f6f50dace4076"
 export WANDB_BASE_URL="https://toyota.wandb.io"    
 # 必要なら WandB のプロジェクトやエンティティもここで上書き可能
-export WANDB_PROJECT="offroad_rugd"
+export WANDB_PROJECT="Csiro-Image2BiomassPrediction"
 export WANDB_ENTITY="hidebu"
 
 # ===== 実行 =====
