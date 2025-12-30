@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 100_train_exp009   # TODO: 実験連番
+exp: 100_train_exp011   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -62,7 +62,7 @@ augment:
     vflip_p: 0.5
     rotate_limit: 0 # 10
     shift_scale_rotate_p: 0.5 # 0.2
-    color_jitter_p: 0.0 # 0.2
+    color_jitter_p: 0.2 # 0.2
   valid:
     # validは resize + normalize のみ
     dummy: 0
@@ -72,9 +72,9 @@ augment:
 # ==========================
 mixing:
   enabled: false # true
-  p: 0.15              # 小さめ確率（まずは 0.10〜0.20 が無難）
-  mode: mixup_cutmix   # mixup | cutmix | mixup_cutmix
-  mixup_alpha: 0.4     # Beta(alpha, alpha)
+  p: 0.14075341328864174  # 小さめ確率（まずは 0.10〜0.20 が無難）
+  mode: cutmix   # mixup | cutmix | mixup_cutmix
+  mixup_alpha: 1.0     # Beta(alpha, alpha)
   cutmix_alpha: 1.0    # Beta(alpha, alpha)
   switch_prob: 0.5     # mode=mixup_cutmix のとき CutMix を選ぶ確率
 
@@ -82,7 +82,7 @@ mixing:
 # model
 # ==========
 model:
-  backbone: convnext_base             # ✅ ConvNeXt small
+  backbone: convnext_small            # ✅ ConvNeXt small / convnext_base
   # backbone: swin_tiny               # ✅ alias → swin_tiny_patch4_window7_224
   # backbone: swin_tiny_patch4_window7_224
   # backbone: efficientnetv2_s        # ✅ alias → tf_efficientnetv2_s
@@ -111,22 +111,22 @@ early_stopping:
 
 ema:
   enabled: false # true
-  decay: 0.99 # 0.95
+  decay: 0.0 # 0.95
 
 # =========================
 # optimizer & scheduler
 # =========================
 optimizer:
   name: adamw
-  base_lr: 0.00001634101202877483 # 1e-4 #  1e-4
-  weight_decay: 0.016260273837719774 # 0.05 # 1e-5
+  base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
+  weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
-  base_lr: 0.00001634101202877483 # 1e-4
-  max_lr: 0.00001634101202877483 # 1e-4 #  5e-4
-  min_lr: 0.00001634101202877483 # 1e-4 # 1e-6
+  base_lr: 0.00001136562991924597 # 1e-4
+  max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
+  min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
   warmup_ratio: 0.05   # warmup_steps が null のときに使う
   warmup_steps: null
   total_steps: null

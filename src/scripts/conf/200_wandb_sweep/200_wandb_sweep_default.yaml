@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 100_train_exp006   # TODO: 実験連番
+exp: 100_train_exp009   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -51,38 +51,54 @@ use_log1p_target: true
 # =======================
 # image / augmentation
 # =======================
-img_size: 224
+img_size: 288 # 224
 normalize:
   mean: [0.485, 0.456, 0.406]
   std:  [0.229, 0.224, 0.225]
 
 augment:
   train:
-    hflip_p: 0.5
-    vflip_p: 0.0
-    rotate_limit: 10
-    shift_scale_rotate_p: 0.2
-    color_jitter_p: 0.2
+    hflip_p: 0.25 # 0.5
+    vflip_p: 0.5
+    rotate_limit: 0 # 10
+    shift_scale_rotate_p: 0.5 # 0.2
+    color_jitter_p: 0.0 # 0.2
   valid:
     # validは resize + normalize のみ
     dummy: 0
+
+# ==========================
+# MixUp / CutMix (train only)
+# ==========================
+mixing:
+  enabled: false # true
+  p: 0.15              # 小さめ確率（まずは 0.10〜0.20 が無難）
+  mode: mixup_cutmix   # mixup | cutmix | mixup_cutmix
+  mixup_alpha: 0.4     # Beta(alpha, alpha)
+  cutmix_alpha: 1.0    # Beta(alpha, alpha)
+  switch_prob: 0.5     # mode=mixup_cutmix のとき CutMix を選ぶ確率
 
 # ==========
 # model
 # ==========
 model:
-  backbone: convnext_base
+  backbone: convnext_base             # ✅ ConvNeXt small
+  # backbone: swin_tiny               # ✅ alias → swin_tiny_patch4_window7_224
+  # backbone: swin_tiny_patch4_window7_224
+  # backbone: efficientnetv2_s        # ✅ alias → tf_efficientnetv2_s
+  # backbone: tf_efficientnetv2_s
   pretrained: true
   in_chans: 3
   drop_rate: 0.0
-  drop_path_rate: 0.0
+  drop_path_rate: 0.1
+  head_dropout: 0.0 # 0.1
 
 # ==========
 # training
 # ==========
 train:
   epochs: 100
-  batch_size: 32
+  batch_size: 64
   grad_accum_steps: 1
   max_norm: 3.0
   log_interval: 50
@@ -94,23 +110,23 @@ early_stopping:
   min_delta: 0.0
 
 ema:
-  enabled: true
-  decay: 0.95
+  enabled: false # true
+  decay: 0.99 # 0.95
 
 # =========================
 # optimizer & scheduler
 # =========================
 optimizer:
   name: adamw
-  base_lr: 1e-4 #  1e-4
-  weight_decay: 0.05 # 1e-5
+  base_lr: 0.00001634101202877483 # 1e-4 #  1e-4
+  weight_decay: 0.016260273837719774 # 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
-  base_lr: 1e-4
-  max_lr: 1e-4 #  5e-4
-  min_lr: 1e-4 # 1e-6
+  base_lr: 0.00001634101202877483 # 1e-4
+  max_lr: 0.00001634101202877483 # 1e-4 #  5e-4
+  min_lr: 0.00001634101202877483 # 1e-4 # 1e-6
   warmup_ratio: 0.05   # warmup_steps が null のときに使う
   warmup_steps: null
   total_steps: null
@@ -126,10 +142,10 @@ loss:
   weights: [0.1, 0.1, 0.1, 0.2, 0.5]
   # ★ まずは小さめから（rawのスケールが大きいので）
   alpha_raw: 0.05
-  alpha_warmup_epochs: 10
+  alpha_warmup_epochs: 0 # 10
   # まずはMSE（高値域を強く詰めたい）
-  raw_loss: mse
-  raw_huber_beta: 5.0  # raw_loss=huberの時だけ有効
+  raw_loss: l1 # mse
+  raw_huber_beta: 10 # 5.0  # raw_loss=huberの時だけ有効
   log_clip_min: -20.0
   log_clip_max: 20.0
 # raw_loss: huber

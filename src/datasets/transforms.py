@@ -23,15 +23,23 @@ def build_transforms(cfg, is_train: bool):
     mean: Sequence[float] = list(cfg.normalize.mean)
     std: Sequence[float] = list(cfg.normalize.std)
 
-    # --- basic resize/pad (keep aspect ratio) ---
+    img_h = cfg.img_size
+    img_w = cfg.img_size * 2
+
+    mean: Sequence[float] = list(cfg.normalize.mean)
+    std: Sequence[float] = list(cfg.normalize.std)
+    # まず長辺を max(img_h, img_w) に合わせてアスペクト比維持で縮放
+    # その後、必要なら pad して最終サイズへ
     base = [
-        A.LongestMaxSize(max_size=img_size),
+        A.LongestMaxSize(max_size=max(img_h, img_w)),
         A.PadIfNeeded(
-            min_height=img_size,
-            min_width=img_size,
-            border_mode=0,   # cv2.BORDER_CONSTANT
+            min_height=img_h,
+            min_width=img_w,
+            border_mode=0,
             fill=0,
         ),
+        # 余計に大きくなるケースを完全に潰すなら最後にCrop
+        A.CenterCrop(height=img_h, width=img_w),
     ]
 
     if is_train:
