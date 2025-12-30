@@ -3,7 +3,8 @@ set -e
 
 # ===== ユーザー設定 =====
 PROJECT_ROOT="/mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction"
-SCRIPT_PATH="$PROJECT_ROOT/src/scripts/100_train_model/100_train_model.py"
+# SCRIPT_PATH="$PROJECT_ROOT/src/scripts/100_train_model/100_train_model.py"
+SCRIPT_PATH="$PROJECT_ROOT/src/scripts/101_train_bmh_model/101_train_bmh_model.py"
 NUM_GPUS=2
 
 MASTER_PORT=29500

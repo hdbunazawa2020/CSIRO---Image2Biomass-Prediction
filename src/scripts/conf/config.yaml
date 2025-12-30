@@ -3,3 +3,4 @@ defaults:
 - 000_preprocess: 000_preprocess_default
 - 100_train_model: 100_train_model_default
 - 200_wandb_sweep: 200_wandb_sweep_default
+- 101_train_bmh_model: 101_train_bmh_model_default
