@@ -21,10 +21,15 @@
 | 25/12/29 | exp005   | 000_preprocess_ver00 | 0/5fold   | convnext_base | 100 | lr=5e-4で固定 | 学習は飽和せず | 0.268  | - |
 | 25/12/29 | exp006   | 000_preprocess_ver00 | 0/5fold   | convnext_base | 100 | exp004+混合loss（log+raw） | r2は上がらず、学習は途上 | 0.378  | - |
 | 25/12/29 | exp007   | 000_preprocess_ver00 | 0/5fold   | convnext_base | 100 | exp006+vertical_flip(p=0.5) | exp007よりも学習遅い. augで多様性が出たかも？ | 0.374  | - |
-| 25/12/29 | exp008   | 000_preprocess_ver00 | 0-4/5fold | convnext_base | 200 | wandb_sweepのBest条件トライ | - | -  | - |
+| 25/12/29 | exp008   | 000_preprocess_ver00 | 0-4/5fold | convnext_base | 200 | wandb_sweepのBest条件トライ | 好スコア再現. Foldで結構揺れる. Foldにより得意な種が変わる. 学習は飽和していない. | 0.557~0.732  | 0.55 |
+| 25/12/29 | exp009   | 000_preprocess_ver00 | 0-4/5fold | convnext_base | 200 | exp008に対し、bs32->16(sweepに合わせる) | Foldで結構揺れる. bs=32の方が学習安定性はありそう. | 0.533~0.777  | 0.56 |
+| 25/12/30 | exp010   | 000_preprocess_ver00 | 0-4/5fold | convnext_base | 200 | exp008に対し、img_sizeを1x2にする | Foldごとのばらつきが提言された. | 0.687-0.792  | 0.49 |
+| 25/12/30 | exp011   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | sweepのbest | - | 0.657-0.797  | 0.54 |
+| 25/12/30 | exp012   | 000_preprocess_ver00 | 0/5fold | convnext_small | 200 | sweepのbest | - | -  | - |
 
 - wandb_sweepについてのメモ
 
 | 日付      | 実験タイミング | データ                 | CV        | モデル         | Ep  | 検討内容        | 結果                       | 
 | --  | --    | --    | --    | --      | -- | -- | -- |
 | 25/12/29 | exp007の後    | 000_preprocess_ver00 | 0/5fold   | convnext系 | 100  | lrは固定としつつ、色々な条件をsearch | r2は0.0~0.69まで色々 | 
+| 25/12/30 | exp010の後    | 000_preprocess_ver00 | 0/5fold   | convnext系 | 100  | 色々な条件をsearch | - | 
