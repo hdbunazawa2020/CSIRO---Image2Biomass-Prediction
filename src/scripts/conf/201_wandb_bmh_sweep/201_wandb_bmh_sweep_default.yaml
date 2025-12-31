@@ -1,0 +1,177 @@
+# ==========
+# general
+# ==========
+exp: 101_train_exp014   # TODO: 実験連番
+seed: 1129
+debug: false
+device: cuda
+use_amp: true
+num_workers: 12
+pin_memory: true
+persistent_workers: true
+# WandB
+use_wandb: true
+competition: Csiro-Image2BiomassPrediction
+author: hidebu
+wandb_log_interval_steps: 100
+# DDP
+ddp:
+  enabled: true
+  backend: nccl
+  find_unused_parameters: true
+
+# ==========
+# paths
+# ==========
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+preprocess_ver: 000_preprocess_ver00
+pivot_csv_name: df_pivot.csv
+
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
+
+# ==========
+# CV
+# ==========
+fold_col: Fold
+folds: [0]          # [0,1,2,3,4] など
+
+# =======================================
+# targets (order MUST match metric.py)
+# =======================================
+target_cols:
+  - Dry_Green_g
+  - Dry_Clover_g
+  - Dry_Dead_g
+  - GDM_g
+  - Dry_Total_g
+
+use_log1p_target: true
+
+# =======================
+# image / augmentation
+# =======================
+img_size: 288 # 224
+normalize:
+  mean: [0.485, 0.456, 0.406]
+  std:  [0.229, 0.224, 0.225]
+
+augment:
+  train:
+    hflip_p: 0.25 # 0.5
+    vflip_p: 0.5
+    rotate_limit: 0 # 10
+    shift_scale_rotate_p: 0.5 # 0.2
+    color_jitter_p: 0.2 # 0.2
+  valid:
+    # validは resize + normalize のみ
+    dummy: 0
+
+# ==========================
+# MixUp / CutMix (train only)
+# ==========================
+mixing:
+  enabled: false # true
+  p: 0.14075341328864174  # 小さめ確率（まずは 0.10〜0.20 が無難）
+  mode: cutmix   # mixup | cutmix | mixup_cutmix
+  mixup_alpha: 1.0     # Beta(alpha, alpha)
+  cutmix_alpha: 1.0    # Beta(alpha, alpha)
+  switch_prob: 0.5     # mode=mixup_cutmix のとき CutMix を選ぶ確率
+
+# ==========
+# model
+# ==========
+model:
+  name: BiomassConvNeXtMILHurdle
+  backbone: convnext_small
+  # backbone: swin_tiny               # ✅ alias → swin_tiny_patch4_window7_224
+  # backbone: swin_tiny_patch4_window7_224
+  # backbone: efficientnetv2_s        # ✅ alias → tf_efficientnetv2_s
+  # backbone: tf_efficientnetv2_s
+  pretrained: true
+  in_chans: 3
+  # --- attention pooling ---
+  pool_dropout: 0.0
+  pool_temperature: 1.0  # 0.7〜2.0 あたりを探索
+  # --- MIL (今はDatasetが4Dなら実質未使用だが、将来のために定義) ---
+  mil_mode: mean     # mean/max/gated_attn
+  mil_attn_dim: 256
+  mil_dropout: 0.0
+  # --- hurdle head ---
+  head_hidden_dim: 512
+  head_dropout: 0.2
+  return_attention: false  # trueにするとメモリ増（解析時のみ推奨）
+
+# ==========
+# training
+# ==========
+train:
+  epochs: 100
+  batch_size: 128
+  grad_accum_steps: 1
+  max_norm: 3.0
+  log_interval: 50
+  val_interval: 1
+
+early_stopping:
+  enabled: true
+  patience: 1000
+  min_delta: 0.0
+
+ema:
+  enabled: false # true
+  decay: 0.0 # 0.95
+
+# =========================
+# optimizer & scheduler
+# =========================
+optimizer:
+  name: adamw
+  base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
+  weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: warmup_cosine
+  base_lr: 0.00001136562991924597 # 1e-4
+  max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
+  min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
+  warmup_ratio: 0.05   # warmup_steps が null のときに使う
+  warmup_steps: null
+  total_steps: null
+
+# ===================================================
+# loss / metric weights (same order as target_cols)
+# ===================================================
+loss:
+  name: hurdle_mixed_log_raw
+
+  # 公式の重み（5ターゲット）
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+
+  # 3成分用の重み（まずは等価でもOK）
+  weights3: [0.1, 0.1, 0.1]
+
+  # --- reg loss (MixedLogRawLoss) ---
+  alpha_raw: 0.05
+  alpha_warmup_epochs: 0
+  raw_loss: l1
+  raw_huber_beta: 10
+  log_clip_min: -20.0
+  log_clip_max: 20.0
+
+  # --- hurdle aux losses ---
+  lambda_presence: 1.0 # 0.2
+  lambda_amount: 0.1
+  lambda_amount_neg: 0.0
+
+  presence_threshold_g: 0.0
+  presence_pos_weight: null   # 例: [2.0, 2.0, 2.0]
+
+  amount_loss: mse            # mse/huber
+  amount_huber_beta: 5.0
+  amount_on_log: true
+
+metric:
+  name: weighted_r2
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5]

@@ -2,8 +2,10 @@
 set -euo pipefail
 
 PROJECT_ROOT="/mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction"
-SCRIPT_PATH="$PROJECT_ROOT/src/scripts/200_wandb_sweep/200_wandb_sweep.py"
-BASE_CFG="$PROJECT_ROOT/src/scripts/conf/200_wandb_sweep/200_wandb_sweep_default.yaml"
+# SCRIPT_PATH="$PROJECT_ROOT/src/scripts/200_wandb_sweep/200_wandb_sweep.py"
+# BASE_CFG="$PROJECT_ROOT/src/scripts/conf/200_wandb_sweep/200_wandb_sweep_default.yaml"
+SCRIPT_PATH="$PROJECT_ROOT/src/scripts/201_wandb_bmh_sweep/201_wandb_bmh_sweep.py"
+BASE_CFG="$PROJECT_ROOT/src/scripts/conf/201_wandb_bmh_sweep/201_wandb_bmh_sweep_default.yaml"
 
 # sweep回数（1 agent が何 trial 回すか）
 COUNT=60
@@ -13,6 +15,7 @@ export WANDB_API_KEY="local-73f67a791cf323a6e8cd6e10844f6f50dace4076"
 export WANDB_BASE_URL="https://toyota.wandb.io"
 export WANDB_PROJECT="Csiro-Image2BiomassPrediction"
 export WANDB_ENTITY="hidebu"
+export WANDB_AGENT_DISABLE_FLAPPING=true
 
 # （任意）使うGPUを固定したい場合
 # export CUDA_VISIBLE_DEVICES=0
