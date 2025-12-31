@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 101_train_exp012   # TODO: 実験連番
+exp: 101_train_exp014   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -82,6 +82,7 @@ mixing:
 # model
 # ==========
 model:
+  name: BiomassConvNeXtMILHurdle
   backbone: convnext_small
   # backbone: swin_tiny               # ✅ alias → swin_tiny_patch4_window7_224
   # backbone: swin_tiny_patch4_window7_224
@@ -106,7 +107,7 @@ model:
 # ==========
 train:
   epochs: 200
-  batch_size: 32
+  batch_size: 64
   grad_accum_steps: 1
   max_norm: 3.0
   log_interval: 50
@@ -160,7 +161,7 @@ loss:
   log_clip_max: 20.0
 
   # --- hurdle aux losses ---
-  lambda_presence: 0.2
+  lambda_presence: 1.0 # 0.2
   lambda_amount: 0.1
   lambda_amount_neg: 0.0
 

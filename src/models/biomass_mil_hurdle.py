@@ -338,9 +338,9 @@ class BiomassConvNeXtMILHurdle(nn.Module):
         Returns:
             pred5: (B, 5) = [Green, Clover, Dead, GDM, Total]
         """
-        green = comp3[:, 0]
+        green  = comp3[:, 0]
         clover = comp3[:, 1]
-        dead = comp3[:, 2]
+        dead   = comp3[:, 2]
         gdm = green + clover
         total = gdm + dead
         pred5 = torch.stack([green, clover, dead, gdm, total], dim=1)
@@ -400,7 +400,7 @@ class BiomassConvNeXtMILHurdle(nn.Module):
         head_out = self.head(bag_emb)
         comp3 = head_out["expected"]  # (B, 3)
 
-        # 5出力へ変換（GDM/Totalは和）
+        # 5出力へ変換（GDM/Totalは和） | _compose_outputs関数
         pred5 = self._compose_outputs(comp3)
 
         out: Dict[str, torch.Tensor] = {
