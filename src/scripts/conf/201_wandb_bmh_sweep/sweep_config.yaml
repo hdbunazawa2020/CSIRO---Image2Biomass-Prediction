@@ -1,0 +1,60 @@
+method: bayes
+
+metric:
+  name: best/weighted_r2
+  goal: maximize
+
+parameters:
+  # ---- optimizer ----
+  lr:
+    distribution: log_uniform_values
+    min: 5e-6
+    max: 8e-5
+
+  weight_decay:
+    distribution: log_uniform_values
+    min: 1e-6
+    max: 3e-3
+
+  # ---- model ----
+  pool_temperature:
+    distribution: uniform
+    min: 0.6
+    max: 2.0
+
+  head_dropout:
+    distribution: uniform
+    min: 0.0
+    max: 0.4
+
+  # ---- loss ----
+  alpha_raw:
+    distribution: uniform
+    min: 0.0
+    max: 0.2
+
+  lambda_presence:
+    distribution: log_uniform_values
+    min: 0.05
+    max: 2.0
+
+  lambda_amount_neg:
+    distribution: uniform
+    min: 0.0
+    max: 0.5
+
+  # ✅ 追加：raw_loss
+  raw_loss:
+    values: ["l1", "huber"]
+
+  # huber のときだけ効くが、入れておくと便利
+  raw_huber_beta:
+    values: [3.0, 5.0, 10.0, 20.0]
+
+  # ✅ 追加：weights3（候補セットで探索するのが安全）
+  weights3:
+    values:
+      - [0.10, 0.10, 0.10]
+      - [0.10, 0.10, 0.20]  # Dead強め
+      - [0.15, 0.10, 0.10]  # Green強め
+      - [0.10, 0.15, 0.10]  # Clover強め
