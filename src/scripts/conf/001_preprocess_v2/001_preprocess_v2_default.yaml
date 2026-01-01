@@ -1,0 +1,83 @@
+exp: 001_preprocess_ver02
+seed: 1129
+debug: false
+
+author: hidebu
+competition: Csiro-Image2BiomassPrediction
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+pivot_csv_name: df_pivot.csv
+
+# =========================
+# CV / Fold settings
+# =========================
+n_splits: 4
+fold_col: Fold
+
+# group（リーク防止）
+# まずは“厳しめ”に State + Sampling_Date で
+group_cols: [State, Sampling_Date]
+
+# Sampling_Date を group に使うときの粒度:
+# - day   : その日単位
+# - month : 月単位（Discussionでも month が良いという話が多い）
+sampling_date_group: day   # ←まず day で。次に month を試すのがおすすめ
+
+# =========================
+# stratify settings
+# =========================
+stratify:
+  # mode:
+  #  - target      : target bin + presence flags
+  #  - state       : stateのみ（Discussion寄せ）
+  #  - state_target: state + target bin（カテゴリ爆発で失敗しやすい）
+  mode: target
+  state_col: State
+  target: Dry_Total_g
+  use_log1p: true
+  bins_candidates: [8, 6, 5, 4, 3]
+
+  # ゼロが多いターゲット（presence）を stratify に混ぜる
+  presence_targets: [Dry_Clover_g, Dry_Dead_g]
+  presence_threshold_g: 0.0
+
+  # mode=target のときは false 推奨（カテゴリが増えて失敗しやすい）
+  add_state: false
+
+# =========================
+# seed search (Plan1 core)
+# =========================
+seed_search:
+  enabled: true
+  method: grid # random
+  n_trials: 50000
+  seed_start: 0
+  seed_end: 50000
+  top_k: 30
+
+  # fold0を代表foldにする（番号の付け替え）
+  make_fold0_representative: true
+
+  # どのターゲットの zero_rate を均等化したいか
+  zero_targets: [Dry_Clover_g, Dry_Dead_g]
+
+  # Dry_Total の上位何%を “高Total” と見なすか（高Totalが偏ると巨大誤差が出やすい）
+  high_total_quantile: 0.85
+
+  # score の重み（大きいほど厳しく抑える）
+  # mean だけでなく max 偏差も入れて、fold1-3の事故を抑える
+  score_weights:
+    size_cv: 1.0
+
+    state_l1_mean: 1.0
+    state_l1_max: 0.7
+    missing_state_pairs: 2.0
+
+    bin_l1_mean: 0.3
+    bin_l1_max: 0.3
+
+    zero_rate_mae: 0.7
+    zero_rate_maxdev: 0.7
+
+    high_rate_mae: 0.7
+    high_rate_maxdev: 0.7
