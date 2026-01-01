@@ -6,3 +6,4 @@ defaults:
 - 101_train_bmh_model: 101_train_bmh_model_default
 - 201_wandb_bmh_sweep: 201_wandb_bmh_sweep_default
 - 001_preprocess_v2: 001_preprocess_v2_default
+- 900_evaluate_oof: 900_evaluate_oof_default

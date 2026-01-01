@@ -27,10 +27,12 @@
 | 25/12/30 | exp011   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | sweepのbest | LB bestになった. まだCV/LBの乖離がある. | 0.738(0.657-0.797)  | 0.58 |
 | 25/12/30 | exp012   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | BiomassConvNeXtMILHurdle | CV, LBともにあまり上がらず. 0gの予測がズレる問題あり. | 0.657(0.533-0.747)  | 0.51 |
 | 25/12/31 | exp013   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+lambda_presence(0.2->0.5) | スコアは悪化 |0.648 | 0.47  | 
-| 25/12/31 | exp014   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+lambda_presence(0.2->1.0) | スコアはさらに悪化 |0.643 | 0.50  | 
-| 26/01/01 | exp015   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+sweep_best | - | -  | - |
-| 26/01/01 | exp016   | 001_preprocess_ver01 | 0-4/5fold | convnext_small | 200 | exp11+dataset変更 | - | -  | - |
-| 26/01/01 | exp017   | 001_preprocess_ver01 | 0-4/5fold | convnext_small | 200 | exp15+dataset変更 | - | -  | - |
+| 25/12/31 | exp014   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+lambda_presence(0.2->1.0) | スコアはさらに悪化 | 0.643 | 0.50  | 
+| 26/01/01 | exp015   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+sweep_best | - | 0.719  | 0.50 |
+| 26/01/01 | exp016   | 001_preprocess_ver01 | 0-3/4fold | convnext_small | 200 | exp11+dataset変更 | - | 0.737  | 0.62 |
+| 26/01/01 | exp017   | 001_preprocess_ver01 | 0-3/4fold | convnext_small | 200 | exp15+dataset変更 | - | 0.699  | 0.51 |
+
+
 
 - wandb_sweepについてのメモ
 
