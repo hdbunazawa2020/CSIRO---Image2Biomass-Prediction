@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 101_train_exp014   # TODO: 実験連番
+exp: 101_train_exp017   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -25,7 +25,7 @@ ddp:
 # ==========
 input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
 pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
-preprocess_ver: 000_preprocess_ver00
+preprocess_ver: 001_preprocess_ver01
 pivot_csv_name: df_pivot.csv
 
 output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
@@ -34,7 +34,7 @@ output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experime
 # CV
 # ==========
 fold_col: Fold
-folds: [0,1,2,3,4]          # [0,1,2,3,4] など
+folds: [0,1,2,3]          # [0,1,2,3,4] など
 
 # =======================================
 # targets (order MUST match metric.py)
@@ -72,7 +72,7 @@ augment:
 # ==========================
 mixing:
   enabled: false # true
-  p: 0.14075341328864174  # 小さめ確率（まずは 0.10〜0.20 が無難）
+  p: 0.0  # 小さめ確率（まずは 0.10〜0.20 が無難）
   mode: cutmix   # mixup | cutmix | mixup_cutmix
   mixup_alpha: 1.0     # Beta(alpha, alpha)
   cutmix_alpha: 1.0    # Beta(alpha, alpha)
@@ -92,14 +92,14 @@ model:
   in_chans: 3
   # --- attention pooling ---
   pool_dropout: 0.0
-  pool_temperature: 1.0  # 0.7〜2.0 あたりを探索
+  pool_temperature: 1.6721652298889356  # 0.7〜2.0 あたりを探索
   # --- MIL (今はDatasetが4Dなら実質未使用だが、将来のために定義) ---
   mil_mode: mean     # mean/max/gated_attn
   mil_attn_dim: 256
   mil_dropout: 0.0
   # --- hurdle head ---
   head_hidden_dim: 512
-  head_dropout: 0.2
+  head_dropout: 0.01838904615499706
   return_attention: false  # trueにするとメモリ増（解析時のみ推奨）
 
 # ==========
@@ -127,15 +127,15 @@ ema:
 # =========================
 optimizer:
   name: adamw
-  base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
-  weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
+  base_lr: 0.00001976647472533126 # 1e-4 #  1e-4
+  weight_decay: 0.00025988529711601084 # 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
-  base_lr: 0.00001136562991924597 # 1e-4
-  max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
-  min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
+  base_lr: 0.00001976647472533126 # 1e-4
+  max_lr: 0.00001976647472533126 # 1e-4 #  5e-4
+  min_lr: 0.00001976647472533126 # 1e-4 # 1e-6
   warmup_ratio: 0.05   # warmup_steps が null のときに使う
   warmup_steps: null
   total_steps: null
@@ -153,23 +153,21 @@ loss:
   weights3: [0.1, 0.1, 0.1]
 
   # --- reg loss (MixedLogRawLoss) ---
-  alpha_raw: 0.05
+  alpha_raw: 0.08419687539756449 # 0.05
   alpha_warmup_epochs: 0
-  raw_loss: l1
-  raw_huber_beta: 10
+  raw_loss: huber # l1
+  raw_huber_beta: 20 # 10
   log_clip_min: -20.0
   log_clip_max: 20.0
-
   # --- hurdle aux losses ---
-  lambda_presence: 1.0 # 0.2
+  lambda_presence: 0.6584922708677731 # 0.2
   lambda_amount: 0.1
-  lambda_amount_neg: 0.0
-
+  lambda_amount_neg: 0.03142223351266582
   presence_threshold_g: 0.0
   presence_pos_weight: null   # 例: [2.0, 2.0, 2.0]
 
   amount_loss: mse            # mse/huber
-  amount_huber_beta: 5.0
+  amount_huber_beta: 5.0 # 5.0
   amount_on_log: true
 
 metric:

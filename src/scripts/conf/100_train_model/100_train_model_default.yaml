@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 100_train_exp011   # TODO: 実験連番
+exp: 100_train_exp016   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -25,7 +25,7 @@ ddp:
 # ==========
 input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
 pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
-preprocess_ver: 000_preprocess_ver00
+preprocess_ver: 001_preprocess_ver01
 pivot_csv_name: df_pivot.csv
 
 output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
@@ -34,7 +34,7 @@ output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experime
 # CV
 # ==========
 fold_col: Fold
-folds: [0,1,2,3,4]          # [0,1,2,3,4] など
+folds: [0,1,2,3]          # [0,1,2,3,4] など
 
 # =======================================
 # targets (order MUST match metric.py)
