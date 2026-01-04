@@ -93,28 +93,38 @@ def _extract_pred_log1p(model_out: Any) -> torch.Tensor:
     return model_out
 
 
-def _call_loss_fn(loss_fn: nn.Module, model_out: Any, target: torch.Tensor) -> Any:
-    """loss_fnを呼び出す（dictモデル出力/旧モデル両対応）。
+def _call_loss_fn(loss_fn: nn.Module, model_out: Any, target: torch.Tensor, batch: Optional[Dict[str, Any]] = None) -> Any:
+    """loss_fnを呼び出す（dictモデル出力/旧モデル両対応 + aux対応）。
 
-    新モデル向けlossは model_out(dict) を受け取るのが自然だが、
-    旧loss(WeightedMSEなど)は Tensor しか受けないことがある。
-    その場合は pred_log1p を渡してフォールバックする。
+    優先順位:
+      1) loss_fn(model_out, target, batch=batch)  # ★aux対応loss
+      2) loss_fn(model_out, target)              # 既存（dict対応lossなど）
+      3) loss_fn(pred_log1p, target)             # 旧loss互換
 
     Args:
         loss_fn: 損失関数
         model_out: モデル出力（Tensor or dict）
         target: (B, K) target（多くはlog1p）
+        batch: Datasetが返すbatch辞書（aux_target等を含む）
 
     Returns:
         loss_out: Tensor or dict
     """
+    # 1) aux対応（batch引数あり）
+    try:
+        return loss_fn(model_out, target, batch=batch)
+    except TypeError:
+        pass
+
+    # 2) 従来の呼び出し
     try:
         return loss_fn(model_out, target)
     except TypeError:
-        # 旧loss互換: pred tensor を渡す
-        pred_log = _extract_pred_log1p(model_out)
-        return loss_fn(pred_log, target)
+        pass
 
+    # 3) 旧loss互換: pred tensor を渡す
+    pred_log = _extract_pred_log1p(model_out)
+    return loss_fn(pred_log, target)
 
 # =========================================================
 # MixUp / CutMix
@@ -364,7 +374,8 @@ def train_one_epoch(
             # Loss
             # -------------------------
             # 新lossは dict を受ける想定。旧loss互換もフォールバックで対応。
-            loss_out = _call_loss_fn(loss_fn, model_out, y)
+            # loss_out = _call_loss_fn(loss_fn, model_out, y)
+            loss_out = _call_loss_fn(loss_fn, model_out, y, batch=batch)
 
             if isinstance(loss_out, dict):
                 loss = loss_out["loss"]
@@ -384,12 +395,20 @@ def train_one_epoch(
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), float(max_norm))
 
+            # scaler.step(optimizer)
+            # scaler.update()
+            # optimizer.zero_grad(set_to_none=True)
+            # # schedulerは「optimizer stepに同期して進める」
+            # if scheduler is not None:
+            #     scheduler.step()
+            scale_before = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
+            scale_after = scaler.get_scale()
             optimizer.zero_grad(set_to_none=True)
-
-            # schedulerは「optimizer stepに同期して進める」
-            if scheduler is not None:
+            # overflow で step がスキップされたときは scale が減ることが多い
+            did_step = (scale_after >= scale_before)
+            if scheduler is not None and did_step:
                 scheduler.step()
 
             global_step += 1
@@ -500,7 +519,8 @@ def valid_one_epoch(
             pred_log_tensor = _extract_pred_log1p(model_out)
 
             # loss
-            loss_out = _call_loss_fn(loss_fn, model_out, y)
+            # loss_out = _call_loss_fn(loss_fn, model_out, y)
+            loss_out = _call_loss_fn(loss_fn, model_out, y, batch=batch)
             if isinstance(loss_out, dict):
                 loss = loss_out["loss"]
                 extra = {k: _as_float(v) for k, v in loss_out.items() if k != "loss"}
