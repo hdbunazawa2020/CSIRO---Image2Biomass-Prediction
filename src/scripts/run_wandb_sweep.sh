@@ -2,10 +2,10 @@
 set -euo pipefail
 
 PROJECT_ROOT="/mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction"
-# SCRIPT_PATH="$PROJECT_ROOT/src/scripts/200_wandb_sweep/200_wandb_sweep.py"
-# BASE_CFG="$PROJECT_ROOT/src/scripts/conf/200_wandb_sweep/200_wandb_sweep_default.yaml"
-SCRIPT_PATH="$PROJECT_ROOT/src/scripts/201_wandb_bmh_sweep/201_wandb_bmh_sweep.py"
-BASE_CFG="$PROJECT_ROOT/src/scripts/conf/201_wandb_bmh_sweep/201_wandb_bmh_sweep_default.yaml"
+SCRIPT_PATH="$PROJECT_ROOT/src/scripts/200_wandb_sweep/200_wandb_sweep.py"
+BASE_CFG="$PROJECT_ROOT/src/scripts/conf/200_wandb_sweep/200_wandb_sweep_default.yaml"
+# SCRIPT_PATH="$PROJECT_ROOT/src/scripts/201_wandb_bmh_sweep/201_wandb_bmh_sweep.py"
+# BASE_CFG="$PROJECT_ROOT/src/scripts/conf/201_wandb_bmh_sweep/201_wandb_bmh_sweep_default.yaml"
 
 # sweep回数（1 agent が何 trial 回すか）
 COUNT=60

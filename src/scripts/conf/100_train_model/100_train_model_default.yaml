@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 100_train_exp016   # TODO: 実験連番
+exp: 100_train_exp028   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -51,7 +51,7 @@ use_log1p_target: true
 # =======================
 # image / augmentation
 # =======================
-img_size: 288 # 224
+img_size: 288 # 224 | 288
 normalize:
   mean: [0.485, 0.456, 0.406]
   std:  [0.229, 0.224, 0.225]
@@ -82,7 +82,7 @@ mixing:
 # model
 # ==========
 model:
-  backbone: convnext_small            # ✅ ConvNeXt small / convnext_base
+  backbone: convnext_base            # ✅ ConvNeXt small / convnext_base
   # backbone: swin_tiny               # ✅ alias → swin_tiny_patch4_window7_224
   # backbone: swin_tiny_patch4_window7_224
   # backbone: efficientnetv2_s        # ✅ alias → tf_efficientnetv2_s
@@ -92,6 +92,32 @@ model:
   drop_rate: 0.0
   drop_path_rate: 0.1
   head_dropout: 0.0 # 0.1
+  # aux loss
+  aux_hidden_dim: 256
+  aux_dropout: 0.1
+
+aux:
+  enabled: true
+  warmup_epochs: 20   # ★最初は主タスクに集中させる
+
+  species:
+    enabled: true
+    col: Species
+    weight: 0.05           # ★小さく開始（効きすぎると主タスクを壊す）
+    label_smoothing: 0.05
+    ignore_index: -1
+  ndvi:
+    enabled: true
+    col: Pre_GSHH_NDVI
+    weight: 0.02
+    loss: huber
+    beta: 0.1
+  height:
+    enabled: true
+    col: Height_Ave_cm
+    weight: 0.02
+    loss: huber
+    beta: 5.0
 
 # ==========
 # training
@@ -116,41 +142,56 @@ ema:
 # =========================
 # optimizer & scheduler
 # =========================
+# optimizer:
+#   name: adamw
+#   base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
+#   weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
+#   betas: [0.9, 0.999]
+
+# scheduler:
+#   name: warmup_cosine
+#   base_lr: 0.00001136562991924597 # 1e-4
+#   max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
+#   min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
+#   warmup_ratio: 0.05   # warmup_steps が null のときに使う
+#   warmup_steps: null
+#   total_steps: null
 optimizer:
   name: adamw
-  base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
+  base_lr: 2.0e-6
   weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
-  base_lr: 0.00001136562991924597 # 1e-4
-  max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
-  min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
-  warmup_ratio: 0.05   # warmup_steps が null のときに使う
+  base_lr: 2.0e-6
+  max_lr: 5.0e-5
+  min_lr: 2.0e-6
+  warmup_ratio: 0.03
   warmup_steps: null
   total_steps: null
 
 # ===================================================
 # loss / metric weights (same order as target_cols)
 # ===================================================
-# loss:
-#   name: weighted_mse
-#   weights: [0.1, 0.1, 0.1, 0.2, 0.5]
 loss:
   name: mixed_log_raw
-  weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5] # [0.1, 0.1, 0.1, 0.2, 0.5]
   # ★ まずは小さめから（rawのスケールが大きいので）
   alpha_raw: 0.05
   alpha_warmup_epochs: 0 # 10
   # まずはMSE（高値域を強く詰めたい）
-  raw_loss: l1 # mse
+  raw_loss: mse # mse
   raw_huber_beta: 10 # 5.0  # raw_loss=huberの時だけ有効
   log_clip_min: -20.0
   log_clip_max: 20.0
-# raw_loss: huber
-# raw_huber_beta: 10.0
-# alpha_raw: 0.1
+  # 追加: soft整合（まずは小さく）
+  lambda_consistency: 0.5
+  consistency_loss: "huber"
+  consistency_beta: 10.0
+  # 任意: 整合は遅らせたいなら
+  consistency_warmup_epochs: 20
+
 
 metric:
   name: weighted_r2

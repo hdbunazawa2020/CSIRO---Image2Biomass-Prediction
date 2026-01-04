@@ -1,4 +1,4 @@
-exp: 001_preprocess_ver02
+exp: 001_preprocess_ver03
 seed: 1129
 debug: false
 
@@ -16,7 +16,7 @@ fold_col: Fold
 
 # group（リーク防止）
 # まずは“厳しめ”に State + Sampling_Date で
-group_cols: [State, Sampling_Date]
+group_cols: [State] # 
 
 # Sampling_Date を group に使うときの粒度:
 # - day   : その日単位
