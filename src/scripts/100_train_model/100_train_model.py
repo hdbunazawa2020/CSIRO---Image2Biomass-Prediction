@@ -38,11 +38,9 @@ from utils.wandb_utils import set_wandb
 from utils.losses import WeightedMSELoss
 from utils.losses import MixedLogRawLoss
 from utils.train_utils import get_criterion, build_optimizer, build_scheduler, get_scaler
-# from datasets.dataset import CsiroDataset
-from datasets.aux_dataset import CsiroDataset
+from datasets.dataset import CsiroDataset
 from datasets.transforms import build_transforms
-# from models.convnext_regressor import ConvNeXtRegressor
-from models.covnext_aux_regressor import ConvNeXtAuxRegressor
+from models.convnext_regressor import ConvNeXtRegressor
 from training.train import train_one_epoch, valid_one_epoch
 
 # ===== optional deps =====
@@ -161,80 +159,13 @@ def main(cfg: DictConfig) -> None:
         print(f"[INFO] pivot_path: {pivot_path}")
         show_df(df, 3, True)
 
-    # 100_train_model.py の df 読み込み後あたりで（fold loop前）
-    # -----------------------------
-    # Aux (Species/NDVI/Height) の前処理
-    # -----------------------------
-    aux_cfg = getattr(cfg_train, "aux", None)
-    aux_enabled = bool(getattr(aux_cfg, "enabled", False)) if aux_cfg is not None else False
-
-    # ★列名は先に確定させる（NameError防止）
-    sp_col = "Species"
-    ndvi_col = "Pre_GSHH_NDVI"
-    height_col = "Height_Ave_cm"
-
-    if aux_cfg is not None:
-        sp_cfg = getattr(aux_cfg, "species", None)
-        ndvi_cfg = getattr(aux_cfg, "ndvi", None)
-        h_cfg = getattr(aux_cfg, "height", None)
-
-        sp_col = str(getattr(sp_cfg, "col", sp_col)) if sp_cfg is not None else sp_col
-        ndvi_col = str(getattr(ndvi_cfg, "col", ndvi_col)) if ndvi_cfg is not None else ndvi_col
-        height_col = str(getattr(h_cfg, "col", height_col)) if h_cfg is not None else height_col
-
-    species_to_index = {}
-    num_species = 0
-    ndvi_std = 1.0
-    height_std = 1.0
-
-    if aux_enabled:
-        # --- Species encoder（全データから作る：foldでズレないように）---
-        if sp_col in df.columns:
-            species_list = sorted(df[sp_col].dropna().astype(str).unique().tolist())
-            species_to_index = {s: i for i, s in enumerate(species_list)}
-            num_species = len(species_list)
-        else:
-            print(f"[WARN] aux.species.col='{sp_col}' not found in df.columns -> species head will be ignored.")
-            species_to_index = {}
-            num_species = 0
-
-        # --- NDVI std（欠損/文字列混入に強い）---
-        if ndvi_col in df.columns:
-            ndvi_s = pd.to_numeric(df[ndvi_col], errors="coerce").dropna()
-            if len(ndvi_s) > 0:
-                ndvi_std = float(ndvi_s.std())
-                if (not np.isfinite(ndvi_std)) or (ndvi_std <= 0.0):
-                    ndvi_std = 1.0
-            else:
-                ndvi_std = 1.0
-        else:
-            print(f"[WARN] aux.ndvi.col='{ndvi_col}' not found in df.columns -> ndvi_std=1.0")
-
-        # --- Height std（欠損/文字列混入に強い）---
-        if height_col in df.columns:
-            height_s = pd.to_numeric(df[height_col], errors="coerce").dropna()
-            if len(height_s) > 0:
-                height_std = float(height_s.std())
-                if (not np.isfinite(height_std)) or (height_std <= 0.0):
-                    height_std = 1.0
-            else:
-                height_std = 1.0
-        else:
-            print(f"[WARN] aux.height.col='{height_col}' not found in df.columns -> height_std=1.0")
-
-    if is_main:
-        print("[INFO] aux_enabled:", aux_enabled)
-        print("[INFO] aux columns:", {"species": sp_col, "ndvi": ndvi_col, "height": height_col})
-        print("[INFO] num_species:", num_species)
-        print("[INFO] ndvi_std:", ndvi_std, "height_std:", height_std)
-        
     # transforms
     train_tfm = build_transforms(cfg_train, is_train=True)
     valid_tfm = build_transforms(cfg_train, is_train=False)
 
     # loss
     # loss_fn = WeightedMSELoss(list(cfg_train.loss.weights)).to(device)
-    main_loss = MixedLogRawLoss(
+    loss_fn = MixedLogRawLoss(
         weights=list(cfg_train.loss.weights),
         alpha_raw=float(cfg_train.loss.alpha_raw),
         raw_loss=str(cfg_train.loss.raw_loss),
@@ -256,17 +187,6 @@ def main(cfg: DictConfig) -> None:
         # ★重要：列順を名前から推定するために渡す
         target_cols=list(cfg_train.target_cols),
     ).to(device)
-    loss_fn = main_loss
-    if aux_enabled:
-        from utils.losses import BiomassAuxLossWrapper
-        loss_fn = BiomassAuxLossWrapper(
-            main_loss=main_loss,
-            aux_cfg=aux_cfg,
-            ndvi_std=ndvi_std,
-            height_std=height_std,
-        ).to(device)
-
-
     # folds
     folds = list(cfg_train.folds)
 
@@ -293,7 +213,6 @@ def main(cfg: DictConfig) -> None:
             transform=train_tfm,
             use_log1p_target=bool(cfg_train.use_log1p_target),
             return_target=True,
-            aux_cfg=aux_cfg, species_to_index=species_to_index
         )
         valid_ds = CsiroDataset(
             df=val_df,
@@ -302,7 +221,6 @@ def main(cfg: DictConfig) -> None:
             transform=valid_tfm,
             use_log1p_target=bool(cfg_train.use_log1p_target),
             return_target=True,
-            aux_cfg=aux_cfg, species_to_index=species_to_index
         )
 
         # Sampler / DataLoader
@@ -337,7 +255,7 @@ def main(cfg: DictConfig) -> None:
         # -----------------------------
         # Model
         # -----------------------------
-        model = ConvNeXtAuxRegressor(
+        model = ConvNeXtRegressor(
             backbone=str(cfg_train.model.backbone),
             pretrained=bool(cfg_train.model.pretrained),
             num_targets=len(cfg_train.target_cols),
@@ -345,10 +263,6 @@ def main(cfg: DictConfig) -> None:
             drop_rate=float(cfg_train.model.drop_rate),
             drop_path_rate=float(cfg_train.model.drop_path_rate),
             head_dropout=float(getattr(cfg_train.model, "head_dropout", 0.0)),
-            aux_cfg=aux_cfg,
-            num_species=num_species,
-            aux_hidden_dim=int(getattr(cfg_train.model, "aux_hidden_dim", 256)),
-            aux_dropout=float(getattr(cfg_train.model, "aux_dropout", 0.1)),
         ).to(device)
 
         if use_ddp:

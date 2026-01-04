@@ -25,7 +25,7 @@ ddp:
 # ==========
 input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
 pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
-preprocess_ver: 001_preprocess_ver01
+preprocess_ver: 001_preprocess_ver02
 pivot_csv_name: df_pivot.csv
 
 output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
@@ -142,32 +142,18 @@ ema:
 # =========================
 # optimizer & scheduler
 # =========================
-# optimizer:
-#   name: adamw
-#   base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
-#   weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
-#   betas: [0.9, 0.999]
-
-# scheduler:
-#   name: warmup_cosine
-#   base_lr: 0.00001136562991924597 # 1e-4
-#   max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
-#   min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
-#   warmup_ratio: 0.05   # warmup_steps が null のときに使う
-#   warmup_steps: null
-#   total_steps: null
 optimizer:
   name: adamw
-  base_lr: 2.0e-6
+  base_lr: 0.00001136562991924597 # 1e-4 #  1e-4
   weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
-  base_lr: 2.0e-6
-  max_lr: 5.0e-5
-  min_lr: 2.0e-6
-  warmup_ratio: 0.03
+  base_lr: 0.00001136562991924597 # 1e-4
+  max_lr: 0.00001136562991924597 # 1e-4 #  5e-4
+  min_lr: 0.00001136562991924597 # 1e-4 # 1e-6
+  warmup_ratio: 0.05   # warmup_steps が null のときに使う
   warmup_steps: null
   total_steps: null
 
