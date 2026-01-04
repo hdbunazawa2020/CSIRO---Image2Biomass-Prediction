@@ -28,9 +28,21 @@
 | 25/12/30 | exp012   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | BiomassConvNeXtMILHurdle | CV, LBともにあまり上がらず. 0gの予測がズレる問題あり. | 0.657(0.533-0.747)  | 0.51 |
 | 25/12/31 | exp013   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+lambda_presence(0.2->0.5) | スコアは悪化 |0.648 | 0.47  | 
 | 25/12/31 | exp014   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+lambda_presence(0.2->1.0) | スコアはさらに悪化 | 0.643 | 0.50  | 
-| 26/01/01 | exp015   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+sweep_best | - | 0.719  | 0.50 |
-| 26/01/01 | exp016   | 001_preprocess_ver01 | 0-3/4fold | convnext_small | 200 | exp11+dataset変更 | - | 0.737  | 0.62 |
-| 26/01/01 | exp017   | 001_preprocess_ver01 | 0-3/4fold | convnext_small | 200 | exp15+dataset変更 | - | 0.699  | 0.51 |
+| 26/01/01 | exp015   | 000_preprocess_ver00 | 0-4/5fold | convnext_small | 200 | exp12+sweep_best | CVは向上するもLBは上がらず | 0.719  | 0.50 |
+| 26/01/01 | exp016   | 001_preprocess_ver01 | 0-3/4fold | convnext_small | 200 | exp11+dataset変更 | Dataset変更でばらつきも低減. LBもBest | 0.737  | 0.62 |
+| 26/01/01 | exp017   | 001_preprocess_ver01 | 0-3/4fold | convnext_small | 200 | exp15+dataset変更 | exp015とあまり変わらず | 0.699  | 0.51 |
+| 26/01/02 | exp018   | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 400 | exp16+model変更, Ep変更 | CVは向上. まだ学習も飽和していない感じ | 0.757  | 0.58 |
+| 26/01/02 | exp019   | 001_preprocess_ver01 | 0-3/4fold | convnext_large | 400 | exp16+model変更, Ep変更 | baseと比べCVは低い. 飽和していない感じはある | 0.745  | - |
+| 26/01/03 | exp018+  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 400 | exp018にsum_fix, proj_fix追加し推論 | sum_fix, proj_fixでLBは向上せず | 0.757  | 0.55, 0.55 |
+| 26/01/03 | exp020  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp018+consistency_loss(0.1) | exp018よりも学習カーブの振動が大きい | 0.746  | - |
+| 26/01/03 | exp021  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp018+consistency_loss(0.0) | - | 0.636  | - |
+| 26/01/03 | exp022  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp021+Dry_CroverとDry_Deadのweightを0.1->1.0 | - | 0.600  | - |
+| 26/01/03 | exp023  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp018+consistency_loss(0.2) | - | 0.636  | - |
+| 26/01/03 | exp024  | 001_preprocess_ver01 | 0/4fold | convnext_base | 200 | exp018+consistency_loss(0.2) | - | 0.638  | - |
+| 26/01/03 | exp025  | 001_preprocess_ver01 | 0/4fold | convnext_base | 200 | exp018+consistency_loss(0.5) | - | 0.653  | - |
+| 26/01/03 | exp026  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp025を4foldで | - | 0.738  | - |
+| 26/01/03 | exp027  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp026+aux_loss追加 | - | 0.751  | 0.57 |
+| 26/01/03 | exp028  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp027+lr_scheduler追加 | - | 0.756  | - |
 
 
 
