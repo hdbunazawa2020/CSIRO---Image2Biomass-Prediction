@@ -16,12 +16,12 @@ fold_col: Fold
 
 # group（リーク防止）
 # まずは“厳しめ”に State + Sampling_Date で
-group_cols: [State] # 
+group_cols: [Sampling_Date] # State
 
 # Sampling_Date を group に使うときの粒度:
 # - day   : その日単位
 # - month : 月単位（Discussionでも month が良いという話が多い）
-sampling_date_group: day   # ←まず day で。次に month を試すのがおすすめ
+sampling_date_group: month   # ←まず day で。次に month を試すのがおすすめ
 
 # =========================
 # stratify settings
@@ -31,13 +31,13 @@ stratify:
   #  - target      : target bin + presence flags
   #  - state       : stateのみ（Discussion寄せ）
   #  - state_target: state + target bin（カテゴリ爆発で失敗しやすい）
-  mode: target
+  mode: state # target
   state_col: State
   target: Dry_Total_g
   use_log1p: true
   bins_candidates: [8, 6, 5, 4, 3]
-
   # ゼロが多いターゲット（presence）を stratify に混ぜる
+  # ↓↓↓ mode=state では使わないが、score計算や将来の切替用に残してOK
   presence_targets: [Dry_Clover_g, Dry_Dead_g]
   presence_threshold_g: 0.0
 
