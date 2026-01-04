@@ -278,8 +278,8 @@ class BiomassConvNeXtMILHurdle(nn.Module):
         # classifier head を外して空間特徴マップを得るため global_pool="" を指定
         self.backbone = timm.create_model(
             backbone_name,
-            pretrained=pretrained,
             in_chans=in_chans,
+            pretrained=pretrained,
             num_classes=0,
             global_pool="",
         )
