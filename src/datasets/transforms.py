@@ -18,13 +18,11 @@ def build_transforms(cfg, is_train: bool):
     Returns:
         albumentations.Compose
     """
-    img_size = int(getattr(cfg, "img_size", 224))
-
     mean: Sequence[float] = list(cfg.normalize.mean)
     std: Sequence[float] = list(cfg.normalize.std)
 
-    img_h = cfg.img_size
-    img_w = cfg.img_size * 2
+    img_h = int(getattr(cfg, "img_size", 224))
+    img_w = int(getattr(cfg, "img_w", img_h * 2))
 
     mean: Sequence[float] = list(cfg.normalize.mean)
     std: Sequence[float] = list(cfg.normalize.std)
