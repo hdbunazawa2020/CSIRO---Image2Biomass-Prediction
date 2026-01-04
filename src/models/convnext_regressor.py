@@ -1,23 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-timm backbone regressor (画像のみ入力).
-
-このクラスは名前は ConvNeXtRegressor ですが、実態は
-「timm の任意バックボーンを回帰に使う」ための汎用モデルです。
-
-✅ 対応例:
-- convnext_small / convnext_base
-- swin_tiny_patch4_window7_224 など（Swin）
-- tf_efficientnetv2_s など（EfficientNetV2）
-
-注意:
-- timm のモデルによって create_model の引数対応が微妙に違うので、
-  TypeError が出たら「引数を減らして再try」するフォールバックを入れています。
-"""
-
+# /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/src/models/convnext_regressor.py
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -25,7 +9,6 @@ import timm
 
 
 _BACKBONE_ALIAS: Dict[str, str] = {
-    # 使いやすいショート名 → timmの正式名
     "swin_tiny": "swin_tiny_patch4_window7_224",
     "efficientnetv2_s": "tf_efficientnetv2_s",
 }
@@ -33,6 +16,11 @@ _BACKBONE_ALIAS: Dict[str, str] = {
 
 class ConvNeXtRegressor(nn.Module):
     """timmバックボーン + 線形ヘッドの回帰モデル。
+
+    重要:
+        あなたの前処理は (H,W)=(img_size, img_size*2) の 1:2 入力です。
+        Swin など一部モデルは forward 内で「入力サイズが初期化時の img_size と一致するか」を assert します。
+        そのため、Swin を使う場合は timm.create_model に img_size=(H,W) を渡す必要があります。
 
     Args:
         backbone: timm のモデル名（例: convnext_small, swin_tiny_patch4_window7_224）
@@ -43,6 +31,7 @@ class ConvNeXtRegressor(nn.Module):
         drop_path_rate: backbone 内の stochastic depth（対応モデルのみ）
         head_dropout: head の dropout（最後の線形の前）
         global_pool: 特徴の集約方法（対応モデルのみ。通常 "avg"）
+        img_size: (H, W) を明示する（Swin等の assert 回避に必須）
     """
 
     def __init__(
@@ -55,16 +44,15 @@ class ConvNeXtRegressor(nn.Module):
         drop_path_rate: float = 0.0,
         head_dropout: float = 0.0,
         global_pool: str = "avg",
+        img_size: Optional[Tuple[int, int]] = None,
     ) -> None:
         super().__init__()
 
-        # alias 対応（swin_tiny など）
         backbone = _BACKBONE_ALIAS.get(backbone, backbone)
         self.backbone_name = backbone
 
         # -------------------------
         # backbone（特徴抽出器）
-        # num_classes=0 で「分類headなし」の特徴抽出モード
         # -------------------------
         kwargs = dict(
             pretrained=pretrained,
@@ -75,21 +63,31 @@ class ConvNeXtRegressor(nn.Module):
             global_pool=global_pool,
         )
 
-        # timm のモデルによっては global_pool / drop_* を受け取れないことがあるので安全にフォールバック
+        # ✅ Swin 等で必要：img_size=(H,W)
+        if img_size is not None:
+            kwargs["img_size"] = (int(img_size[0]), int(img_size[1]))
+
+        # timm はモデルによって受け取れる引数が違うので、段階的に削ってフォールバック
         try:
             self.backbone = timm.create_model(backbone, **kwargs)
         except TypeError:
-            # global_pool を外す
+            # 1) global_pool を外す
             kwargs2 = dict(kwargs)
             kwargs2.pop("global_pool", None)
             try:
                 self.backbone = timm.create_model(backbone, **kwargs2)
             except TypeError:
-                # drop系も外す
+                # 2) img_size を外す（ConvNeXt等では不要/未対応なことがある）
                 kwargs3 = dict(kwargs2)
-                kwargs3.pop("drop_rate", None)
-                kwargs3.pop("drop_path_rate", None)
-                self.backbone = timm.create_model(backbone, **kwargs3)
+                kwargs3.pop("img_size", None)
+                try:
+                    self.backbone = timm.create_model(backbone, **kwargs3)
+                except TypeError:
+                    # 3) drop系も外す
+                    kwargs4 = dict(kwargs3)
+                    kwargs4.pop("drop_rate", None)
+                    kwargs4.pop("drop_path_rate", None)
+                    self.backbone = timm.create_model(backbone, **kwargs4)
 
         feat_dim = getattr(self.backbone, "num_features", None)
         if feat_dim is None:
@@ -112,10 +110,7 @@ class ConvNeXtRegressor(nn.Module):
         """
         feat = self.backbone(x)
 
-        # 念のため、モデルによって 3D/4D で返るケースを吸収
-        # 例:
-        # - CNN系: (B, C) or (B, C, H, W)
-        # - Transformer系: (B, N, C)
+        # モデルによって 3D/4D で返るケースを吸収
         if feat.ndim == 4:
             feat = feat.mean(dim=(2, 3))
         elif feat.ndim == 3:
