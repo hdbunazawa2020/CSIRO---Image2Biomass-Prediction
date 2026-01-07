@@ -3,11 +3,13 @@ set -e
 
 # ===== ユーザー設定 =====
 PROJECT_ROOT="/mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction"
-SCRIPT_PATH="$PROJECT_ROOT/src/scripts/100_train_model/100_train_model.py"
+# SCRIPT_PATH="$PROJECT_ROOT/src/scripts/100_train_model/100_train_model.py"
 # SCRIPT_PATH="$PROJECT_ROOT/src/scripts/101_train_bmh_model/101_train_bmh_model.py"
+# SCRIPT_PATH="$PROJECT_ROOT/src/scripts/102_train_aux_regressor/102_train_aux_regressor.py"
+SCRIPT_PATH="$PROJECT_ROOT/src/scripts/103_train_splitcrop_aux_regressor/103_train_splitcrop_aux_regressor.py"
 NUM_GPUS=2
 
-MASTER_PORT=29501
+MASTER_PORT=29502
 
 # ★ WANDB_API_KEY をここに書く場合（※ git管理しないこと！）
 export WANDB_API_KEY="local-73f67a791cf323a6e8cd6e10844f6f50dace4076"
