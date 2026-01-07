@@ -37,12 +37,19 @@
 | 26/01/03 | exp020  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp018+consistency_loss(0.1) | exp018よりも学習カーブの振動が大きい | 0.746  | - |
 | 26/01/03 | exp021  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp018+consistency_loss(0.0) | - | 0.636  | - |
 | 26/01/03 | exp022  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp021+Dry_CroverとDry_Deadのweightを0.1->1.0 | - | 0.600  | - |
-| 26/01/03 | exp023  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp018+consistency_loss(0.2) | - | 0.636  | - |
-| 26/01/03 | exp024  | 001_preprocess_ver01 | 0/4fold | convnext_base | 200 | exp018+consistency_loss(0.2) | - | 0.638  | - |
-| 26/01/03 | exp025  | 001_preprocess_ver01 | 0/4fold | convnext_base | 200 | exp018+consistency_loss(0.5) | - | 0.653  | - |
-| 26/01/03 | exp026  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp025を4foldで | - | 0.738  | - |
-| 26/01/03 | exp027  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp026+aux_loss追加 | - | 0.751  | 0.57 |
-| 26/01/03 | exp028  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp027+lr_scheduler追加 | - | 0.756  | - |
+| 26/01/03 | exp023  | 001_preprocess_ver01 | 0/4fold | convnext_small | 200 | exp018+consistency_loss(0.2) | convnext_baseに戻すことで学習の安定性が向上 | 0.636  | - |
+| 26/01/03 | exp024  | 001_preprocess_ver01 | 0/4fold | convnext_base | 200 | exp018+consistency_loss(0.0) | convnext_baseに戻すことで学習の安定性が向上 | 0.638  | - |
+| 26/01/03 | exp025  | 001_preprocess_ver01 | 0/4fold | convnext_base | 200 | exp018+consistency_loss(0.5) | convnext_baseに戻すことで学習の安定性が向上 | 0.653  | - |
+| 26/01/03 | exp026  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp025を4foldで | LBはBestに届かず | 0.738  | 0.57 |
+| 26/01/03 | exp027  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp026+aux_loss追加 | CV, LBが少し向上. aux_loss効果? | 0.751  | 0.58 |
+| 26/01/03 | exp028  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp027+lr_scheduler追加 | lr schedulerの効果はそこまでなし | 0.756  | 0.58 |
+| 26/01/03 | exp029  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp028+dataset変更 | CVは見た目上落ちる | 0.705  | - |
+| 26/01/03 | exp030  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp027+dataset変更 | Schedulerあり(exp029)より少し良い | 0.713  | 0.59 |
+| 26/01/04 | exp031  | 001_preprocess_ver02 | 0-3/4fold | tf_efficientnetv2_s | 400 | exp030+model変更 | 学習率が低すぎて学習が進んでいなかった | 0.311 | - |
+| 26/01/04 | exp032  | 001_preprocess_ver03 | 0-3/4fold | convnext_base | 400 | exp030+dataset変更 | - | 0.700 | - |
+| 26/01/04 | exp033  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 400 | exp030+dataset変更(3-fold) | あまり変わらず | 0.709 | 0.59 |
+| 26/01/06 | exp034  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 400 | crip_crop_modelをトライ | - | - | - |
+| 26/01/06 | exp035  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 400 | exp034+Lrを10倍 | - | - | - |
 
 
 
