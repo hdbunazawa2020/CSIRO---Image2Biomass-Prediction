@@ -229,26 +229,26 @@ def main(cfg: DictConfig) -> None:
 
     # loss function
     main_loss = MixedLogRawLoss(
-        weights=list(cfg_train.loss.weights),
-        alpha_raw=float(cfg_train.loss.alpha_raw),
-        raw_loss=str(cfg_train.loss.raw_loss),
-        raw_huber_beta=float(cfg_train.loss.raw_huber_beta),
-        log_clip_min=float(cfg_train.loss.log_clip_min),
-        log_clip_max=float(cfg_train.loss.log_clip_max),
-        warmup_epochs=int(cfg_train.loss.alpha_warmup_epochs),
+        weights=list(cfg_train.loss.weights), # 推論対象ごとのweights:[0.1, 0.1, 0.1, 0.2, 0.5]
+        alpha_raw=float(cfg_train.loss.alpha_raw), # raw loss (log変換なし) の重み, log_loss と合わせて1.0になるように
+        raw_loss=str(cfg_train.loss.raw_loss), # raw_loss の種類: huber/mse
+        raw_huber_beta=float(cfg_train.loss.raw_huber_beta), # raw_loss=huber の時の beta
+        log_clip_min=float(cfg_train.loss.log_clip_min), # log_loss のクリッピング最小値 (-20.0だと、exp(-20)でほぼ0)
+        log_clip_max=float(cfg_train.loss.log_clip_max), # log_loss のクリッピング最大値 (20.0だと、exp(20)で約4.8e8) 
+        warmup_epochs=int(cfg_train.loss.alpha_warmup_epochs), # alpha_raw を徐々に増やすウォームアップ期間
 
         # ---- 既存: Total boost（使うならcfgに追加してOK）----
-        alpha_raw_total=float(getattr(cfg_train.loss, "alpha_raw_total", 0.0)),
-        total_index=int(getattr(cfg_train.loss, "total_index", -1)),
+        alpha_raw_total=float(getattr(cfg_train.loss, "alpha_raw_total", 0.0)), # total boost 用 raw loss の重み
+        total_index=int(getattr(cfg_train.loss, "total_index", -1)), # total boost 用の target index
 
         # ---- 追加: soft整合 ----
-        lambda_consistency=float(getattr(cfg_train.loss, "lambda_consistency", 0.0)),
-        consistency_loss=str(getattr(cfg_train.loss, "consistency_loss", "huber")),
-        consistency_beta=float(getattr(cfg_train.loss, "consistency_beta", 10.0)),
-        consistency_warmup_epochs=getattr(cfg_train.loss, "consistency_warmup_epochs", None),
+        lambda_consistency=float(getattr(cfg_train.loss, "lambda_consistency", 0.0)), # 整合項の重み
+        consistency_loss=str(getattr(cfg_train.loss, "consistency_loss", "huber")), # 整合項の loss 種類
+        consistency_beta=float(getattr(cfg_train.loss, "consistency_beta", 10.0)), # 整合項の huber beta
+        consistency_warmup_epochs=getattr(cfg_train.loss, "consistency_warmup_epochs", None), # 整合項のウォームアップ epoch 数
 
         # ★重要：列順を名前から推定するために渡す
-        target_cols=list(cfg_train.target_cols),
+        target_cols=list(cfg_train.target_cols), 
     ).to(device)
     loss_fn = main_loss
     if aux_enabled:
@@ -351,6 +351,8 @@ def main(cfg: DictConfig) -> None:
             num_species=num_species,
             aux_hidden_dim=int(getattr(cfg_train.model, "aux_hidden_dim", 256)),
             aux_dropout=float(getattr(cfg_train.model, "aux_dropout", 0.1)),
+            components_mode=bool(getattr(cfg_train.model, "components_mode", True)),
+            eps=float(getattr(cfg_train.model, "eps", 1e-6)),
         ).to(device)
 
         if use_ddp:

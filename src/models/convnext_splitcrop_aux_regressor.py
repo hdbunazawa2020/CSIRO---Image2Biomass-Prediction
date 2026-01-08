@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import Any, Dict, Optional, Union, Literal
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import timm
 
-from typing import Any, Dict, Optional, Union, Literal
 
 def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
     if cfg is None:
@@ -23,21 +25,30 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
     処理:
       - 2枚を同一backbone(重み共有)に通す
       - view方向に特徴を融合 (concat / mean / max)
-      - main(回帰K) + aux(height, ndvi, species) を出力
+
+    main出力（変更点）:
+      - まず 3種類（Green / Clover / Dead）を予測する（rawで非負になるよう Softplus）
+      - それを足し算で 5種類に拡張する
+          GDM   = Green + Clover
+          Total = GDM + Dead
+      - 返却は既存互換のため pred_log1p: (B,5) とする
+          [Green, Clover, Dead, GDM, Total] の順
+
+    aux出力:
+      - aux(height, ndvi, species) を追加で返す（従来通り）
     """
 
     def __init__(
         self,
         backbone: str,
         pretrained: bool,
-        num_targets: int,          # 5質量
+        num_targets: int,          # 期待は 5（[Green, Clover, Dead, GDM, Total]）
         in_chans: int,
         drop_rate: float,
         drop_path_rate: float,
         head_dropout: float = 0.0,
 
         # view fusion
-        # 左右2枚のcrop画像から得た特徴ベクトルを、どうやって1つにまとめるか（融合するか）
         fuse: Literal["concat", "mean", "max"] = "concat",
 
         # aux
@@ -45,10 +56,23 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
         num_species: int = 0,
         aux_hidden_dim: int = 256,
         aux_dropout: float = 0.1,
+
+        # main head settings
+        components_mode: bool = True,   # True: 3出力→5生成（今回の変更）
+        eps: float = 1e-6,              # log1p/安定用（ほぼ不要だが念のため）
     ) -> None:
         super().__init__()
 
-        self.fuse = fuse 
+        self.fuse = fuse
+        self.components_mode = bool(components_mode)
+        self.eps = float(eps)
+
+        if self.components_mode:
+            if int(num_targets) != 5:
+                raise ValueError(
+                    f"[ConvNeXtSplitCropAuxRegressor] components_mode=True では num_targets=5 が必須です。"
+                    f" got num_targets={num_targets}"
+                )
 
         self.backbone = timm.create_model(
             backbone,
@@ -71,7 +95,13 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
 
         # main head
         self.head_dropout = nn.Dropout(head_dropout) if head_dropout > 0 else nn.Identity()
-        self.head = nn.Linear(fused_dim, int(num_targets))
+
+        if self.components_mode:
+            # ★ 3出力：Green / Clover / Dead
+            self.head = nn.Linear(fused_dim, 3)
+        else:
+            # 従来互換（必要なら）
+            self.head = nn.Linear(fused_dim, int(num_targets))
 
         # aux heads (weight>0のみ)
         self.aux_cfg = aux_cfg
@@ -130,11 +160,36 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
             return feats.max(dim=1).values  # (B, D)
         raise RuntimeError("unreachable")
 
+    def _components3_to_pred_log1p5(self, comp_logits: torch.Tensor) -> torch.Tensor:
+        """
+        comp_logits: (B,3)  -> raw非負 -> 5ターゲット(raw) -> log1pで返す
+
+        出力順:
+          [Green, Clover, Dead, GDM, Total]
+        """
+        # rawの非負化（biomassは負にならない）
+        comp_raw = F.softplus(comp_logits)  # (B,3), >=0
+
+        green = comp_raw[:, 0:1]
+        clover = comp_raw[:, 1:2]
+        dead = comp_raw[:, 2:3]
+
+        gdm = green + clover
+        total = gdm + dead
+
+        raw5 = torch.cat([green, clover, dead, gdm, total], dim=1)  # (B,5)
+
+        # 数値保険（理論上softplusで>=0だが、念のため）
+        raw5 = torch.clamp(raw5, min=0.0)
+
+        pred_log1p = torch.log1p(raw5 + self.eps)  # (B,5)
+        return pred_log1p
+
     def forward(self, x: torch.Tensor) -> Union[torch.Tensor, Dict[str, Any]]:
         """
         x:
           - (B,2,C,H,W) 推奨
-          - (B,C,H,W) も可（V=1扱い→mean/maxはそのまま、concatはエラーにするのが安全）
+          - (B,C,H,W) も可（V=1扱い→mean/maxはそのまま、concatはエラー）
         """
         # 入力チェック & 次元合わせ
         if x.ndim == 4:
@@ -142,6 +197,7 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
             x = x.unsqueeze(1)
         if x.ndim != 5:
             raise ValueError(f"x must be 4D or 5D, got shape={tuple(x.shape)}")
+
         B, V, C, H, W = x.shape
         if V == 1 and self.fuse == "concat":
             raise ValueError("fuse=concat requires V=2 views, but got V=1")
@@ -149,25 +205,31 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
         # ===========================================
         # Backbone forward
         # ===========================================
-        x_ = x.reshape(B * V, C, H, W)              # (B*V,C,H,W)
-        feat_ = self.backbone(x_)                   # (B*V,D)
-        D = feat_.shape[1]                          # D=特徴次元数
-        feats = feat_.reshape(B, V, D)              # (B,V,D), 元の形状に戻す
+        x_ = x.reshape(B * V, C, H, W)       # (B*V,C,H,W)
+        feat_ = self.backbone(x_)            # (B*V,D)
+        D = feat_.shape[1]
+        feats = feat_.reshape(B, V, D)       # (B,V,D)
 
         # ===========================================
-        # View fusion (左右crop2枚の特徴ベクトル融合)
+        # View fusion
         # ===========================================
-        fused = self._fuse_feats(feats)             # (B,fused_dim)
+        fused = self._fuse_feats(feats)      # (B,fused_dim)
 
         # ===========================================
         # Heads forward
         # ===========================================
-        # --- main head ---
-        pred_log1p = self.head(self.head_dropout(fused))
-        # --- aux heads ---
+        main_out = self.head(self.head_dropout(fused))
+
+        if self.components_mode:
+            # ★ 3出力→5出力へ
+            pred_log1p = self._components3_to_pred_log1p5(main_out)
+        else:
+            pred_log1p = main_out  # 従来互換
+
         # aux無効ならmainのみ返す
         if not self.aux_enabled:
             return pred_log1p
+
         # aux有効ならauxも返す
         aux_out: Dict[str, torch.Tensor] = {}
         for name, head in self.aux_heads.items():
