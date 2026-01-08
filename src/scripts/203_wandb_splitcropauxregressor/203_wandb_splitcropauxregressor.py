@@ -23,6 +23,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import WeightedRandomSampler
 
 from omegaconf import OmegaConf, DictConfig
 
@@ -104,6 +105,51 @@ def load_base_cfg(base_cfg_path: Path) -> DictConfig:
     return cfg
 
 
+# def default_sweep_config() -> Dict[str, Any]:
+#     """このスクリプト内蔵の sweep config（外部yaml不要版）。
+
+#     Notes:
+#         ここを編集すると探索範囲を簡単に変えられます。
+#     """
+#     return {
+#         "method": "random",
+#         "metric": {"name": "best/weighted_r2", "goal": "maximize"},
+#         "parameters": {
+#             # --- core ---
+#             "epochs": {"values": [100, 200]},
+#             "batch_size": {"values": [8, 12, 16, 20]},
+#             "img_size": {"values": [224, 256, 288, 320]},
+
+#             # --- optimizer ---
+#             "lr": {"distribution": "log_uniform_values", "min": 5e-6, "max": 5e-4},
+#             "weight_decay": {"distribution": "log_uniform_values", "min": 1e-6, "max": 5e-3},
+
+#             # --- loss ---
+#             "alpha_raw": {"values": [0.0, 0.02, 0.05, 0.10]},
+#             "raw_loss": {"values": ["mse", "huber"]},
+#             "raw_huber_beta": {"values": [5.0, 10.0, 20.0]},
+#             "lambda_consistency": {"values": [0.0, 0.2, 0.5, 1.0]},
+#             "consistency_loss": {"values": ["huber", "mse"]},
+#             "consistency_beta": {"values": [5.0, 10.0, 20.0]},
+
+#             # --- augmentation ---
+#             "hflip_p": {"values": [0.0, 0.5]},
+#             "vflip_p": {"values": [0.0, 0.5]},
+#             "rotate90_p": {"values": [0.0, 0.5]},
+#             "shift_scale_rotate_p": {"values": [0.0, 0.10, 0.15]},
+#             "color_jitter_p": {"values": [0.0, 0.20, 0.30]},
+#             "coarse_dropout_p": {"values": [0.0, 0.10, 0.15]},
+#             "tile_shuffle_p": {"values": [0.0, 0.05, 0.10]},
+#             "blur_noise_p": {"values": [0.0, 0.05, 0.10]},
+
+#             # --- aux weights（必要なら探索）---
+#             "aux_species_w": {"values": [0.0, 0.03, 0.05, 0.08]},
+#             "aux_ndvi_w": {"values": [0.0, 0.01, 0.02, 0.05]},
+#             "aux_height_w": {"values": [0.0, 0.01, 0.02, 0.05]},
+#             "aux_warmup_epochs": {"values": [0, 5, 10, 20]},
+#         },
+#     }
+
 def default_sweep_config() -> Dict[str, Any]:
     """このスクリプト内蔵の sweep config（外部yaml不要版）。
 
@@ -115,8 +161,8 @@ def default_sweep_config() -> Dict[str, Any]:
         "metric": {"name": "best/weighted_r2", "goal": "maximize"},
         "parameters": {
             # --- core ---
-            "epochs": {"values": [100, 200]},
-            "batch_size": {"values": [8, 12, 16, 20]},
+            "epochs": {"values": [200]},
+            "batch_size": {"values": [8, 16, 20]},
             "img_size": {"values": [224, 256, 288, 320]},
 
             # --- optimizer ---
@@ -132,9 +178,9 @@ def default_sweep_config() -> Dict[str, Any]:
             "consistency_beta": {"values": [5.0, 10.0, 20.0]},
 
             # --- augmentation ---
-            "hflip_p": {"values": [0.0, 0.5]},
-            "vflip_p": {"values": [0.0, 0.5]},
-            "rotate90_p": {"values": [0.0, 0.5]},
+            "hflip_p": {"values": [0.0, 0.25, 0.5]},
+            "vflip_p": {"values": [0.0, 0.25, 0.5]},
+            "rotate90_p": {"values": [0.0, 0.25, 0.5]},
             "shift_scale_rotate_p": {"values": [0.0, 0.10, 0.15]},
             "color_jitter_p": {"values": [0.0, 0.20, 0.30]},
             "coarse_dropout_p": {"values": [0.0, 0.10, 0.15]},
@@ -153,6 +199,40 @@ def default_sweep_config() -> Dict[str, Any]:
 # =========================================================
 # wandb overrides
 # =========================================================
+# def build_wandb_default_config(cfg_train: DictConfig) -> Dict[str, Any]:
+#     """wandbに渡すデフォルト（フラット）を作る。"""
+#     defaults = {
+#         "fold": int(cfg_train.folds[0]) if len(cfg_train.folds) > 0 else 0,
+#         "epochs": int(cfg_train.train.epochs),
+#         "batch_size": int(cfg_train.train.batch_size),
+
+#         "img_size": int(cfg_train.img_h),
+
+#         "lr": float(cfg_train.optimizer.base_lr),
+#         "weight_decay": float(cfg_train.optimizer.weight_decay),
+
+#         "alpha_raw": float(cfg_train.loss.alpha_raw),
+#         "raw_loss": str(cfg_train.loss.raw_loss),
+#         "raw_huber_beta": float(cfg_train.loss.raw_huber_beta),
+#         "lambda_consistency": float(getattr(cfg_train.loss, "lambda_consistency", 0.0)),
+#         "consistency_loss": str(getattr(cfg_train.loss, "consistency_loss", "huber")),
+#         "consistency_beta": float(getattr(cfg_train.loss, "consistency_beta", 10.0)),
+
+#         "hflip_p": float(cfg_train.augment.train.hflip_p),
+#         "vflip_p": float(getattr(cfg_train.augment.train, "vflip_p", 0.0)),
+#         "rotate90_p": float(getattr(cfg_train.augment.train, "rotate90_p", 0.0)),
+#         "shift_scale_rotate_p": float(getattr(cfg_train.augment.train, "shift_scale_rotate_p", 0.0)),
+#         "color_jitter_p": float(getattr(cfg_train.augment.train, "color_jitter_p", 0.0)),
+#         "coarse_dropout_p": float(getattr(cfg_train.augment.train, "coarse_dropout_p", 0.0)),
+#         "tile_shuffle_p": float(getattr(cfg_train.augment.train, "tile_shuffle_p", 0.0)),
+#         "blur_noise_p": float(getattr(cfg_train.augment.train, "blur_noise_p", 0.0)),
+
+#         "aux_species_w": float(getattr(cfg_train.aux.species, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+#         "aux_ndvi_w": float(getattr(cfg_train.aux.ndvi, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+#         "aux_height_w": float(getattr(cfg_train.aux.height, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+#         "aux_warmup_epochs": int(getattr(cfg_train.aux, "warmup_epochs", 0)) if hasattr(cfg_train, "aux") else 0,
+#     }
+#     return defaults
 def build_wandb_default_config(cfg_train: DictConfig) -> Dict[str, Any]:
     """wandbに渡すデフォルト（フラット）を作る。"""
     defaults = {
@@ -187,6 +267,7 @@ def build_wandb_default_config(cfg_train: DictConfig) -> Dict[str, Any]:
         "aux_warmup_epochs": int(getattr(cfg_train.aux, "warmup_epochs", 0)) if hasattr(cfg_train, "aux") else 0,
     }
     return defaults
+
 
 
 def apply_wandb_overrides(cfg_train: DictConfig, wcfg: Dict[str, Any]) -> None:
@@ -259,7 +340,7 @@ def apply_wandb_overrides(cfg_train: DictConfig, wcfg: Dict[str, Any]) -> None:
 
     # backbone固定（安全のため強制）
     cfg_train.model.backbone = "convnext_small"
-
+    cfg_train.ddp.enabled = False
     OmegaConf.set_struct(cfg_train, True)
 
 
@@ -378,8 +459,8 @@ def run_one_trial(base_cfg_path: Path) -> None:
         default_cfg.setdefault("batch_size", int(cfg_train.train.batch_size))
 
         run = wandb.init(
-            project=str(cfg_train.competition),
-            entity=str(cfg_train.author),
+            project=os.environ.get("WANDB_PROJECT", str(cfg_train.competition)),
+            entity=os.environ.get("WANDB_ENTITY", str(cfg_train.author)),
             name=None,
             config=default_cfg,
         )
@@ -397,8 +478,10 @@ def run_one_trial(base_cfg_path: Path) -> None:
     # -----------------------------------------------------
     # transforms（Resize差し込み版）
     # -----------------------------------------------------
-    train_tfm = build_transforms_with_optional_resize(cfg_train, is_train=True)
-    valid_tfm = build_transforms_with_optional_resize(cfg_train, is_train=False)
+    # train_tfm = build_transforms_with_optional_resize(cfg_train, is_train=True)
+    # valid_tfm = build_transforms_with_optional_resize(cfg_train, is_train=False)
+    train_tfm = build_transforms(cfg_train, is_train=True)
+    valid_tfm = build_transforms(cfg_train, is_train=False)
 
     # -----------------------------------------------------
     # loss（aux有効なら wrapper を使う）
@@ -453,6 +536,7 @@ def run_one_trial(base_cfg_path: Path) -> None:
         use_split_crop=True,
         crop_size=int(cfg_train.crop_size),
         assume_size=(1000, 2000),
+        crop_mode="random",
     )
     valid_ds = CsiroDataset(
         df=val_df,
@@ -467,11 +551,20 @@ def run_one_trial(base_cfg_path: Path) -> None:
         use_split_crop=True,
         crop_size=int(cfg_train.crop_size),
         assume_size=(1000, 2000),
+        crop_mode="center",
     )
 
     # Loader
-    train_sampler = DistributedSampler(train_ds, num_replicas=world_size, rank=rank, shuffle=True) if use_ddp else None
-
+    # train_sampler = DistributedSampler(train_ds, num_replicas=world_size, rank=rank, shuffle=True) if use_ddp else None
+    true_total = trn_df["Dry_Total_g"].values.astype(float)
+    thr = np.quantile(true_total, 0.85)          # 既にseed_searchでも使ってる閾値
+    w = np.ones_like(true_total, dtype=np.float32)
+    w[true_total >= thr] *= 3.0                  # ここを2〜5で調整
+    train_sampler = WeightedRandomSampler(
+        weights=w,
+        num_samples=len(w),
+        replacement=True,
+    )
     train_loader = DataLoader(
         train_ds,
         batch_size=int(cfg_train.train.batch_size),
@@ -541,9 +634,8 @@ def run_one_trial(base_cfg_path: Path) -> None:
 
     try:
         for epoch in range(1, int(cfg_train.train.epochs) + 1):
-            if use_ddp and train_sampler is not None:
+            if use_ddp and hasattr(train_sampler, "set_epoch"):
                 train_sampler.set_epoch(epoch)
-
             # ---- train ----
             _, global_step = train_one_epoch(
                 cfg=cfg_train,
@@ -636,6 +728,7 @@ def run_one_trial(base_cfg_path: Path) -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+        gc.collect()
 
 
 # =========================================================

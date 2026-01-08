@@ -5,7 +5,7 @@ PROJECT_ROOT="/mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction"
 SCRIPT_PATH="$PROJECT_ROOT/src/scripts/203_wandb_splitcropauxregressor/203_wandb_splitcropauxregressor.py"
 BASE_CFG="$PROJECT_ROOT/src/scripts/conf/203_wandb_splitcropauxregressor/203_wandb_splitcropauxregressor_default.yaml"
 
-COUNT=60
+COUNT=200
 
 export WANDB_API_KEY="local-73f67a791cf323a6e8cd6e10844f6f50dace4076"
 export WANDB_BASE_URL="https://toyota.wandb.io"
