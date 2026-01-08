@@ -1,0 +1,193 @@
+# ==========
+# general
+# ==========
+exp: 203_sweep_splitcropaux_exp01
+seed: 1129
+debug: false
+device: cuda
+use_amp: true
+
+# DataLoader
+num_workers: 12
+pin_memory: true
+persistent_workers: true
+
+# WandB
+use_wandb: true
+competition: Csiro-Image2BiomassPrediction-Sweep
+author: hidebu
+wandb_log_interval_steps: 100
+
+# DDP（Sweepでは基本OFF推奨：agent二重起動問題を避ける）
+ddp:
+  enabled: false
+  backend: nccl
+  find_unused_parameters: false
+
+# ==========
+# paths
+# ==========
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+preprocess_ver: 001_preprocess_ver02
+pivot_csv_name: df_pivot.csv
+
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
+
+# ==========
+# CV（Sweepはまずfold固定で高速化）
+# ==========
+fold_col: Fold
+folds: [0]
+
+# ==========
+# targets
+# ==========
+target_cols:
+  - Dry_Green_g
+  - Dry_Clover_g
+  - Dry_Dead_g
+  - GDM_g
+  - Dry_Total_g
+
+use_log1p_target: true
+
+# ==========
+# image / augmentation
+# ==========
+# split-crop
+use_split_crop: true
+crop_size: 768
+
+# ★Sweepではここを探索対象にする（split-crop後に resize を入れて効かせる）
+img_h: 288
+img_w: 288
+
+normalize:
+  mean: [0.485, 0.456, 0.406]
+  std:  [0.229, 0.224, 0.225]
+
+augment:
+  train:
+    hflip_p: 0.5
+    vflip_p: 0.5
+    rotate90_p: 0.5
+    shift_scale_rotate_p: 0.15
+    color_jitter_p: 0.30
+
+    coarse_dropout_p: 0.15
+    coarse_dropout_max_holes: 16
+    coarse_dropout_min_h: 16
+    coarse_dropout_min_w: 16
+    coarse_dropout_max_h: 64
+    coarse_dropout_max_w: 64
+
+    tile_shuffle_p: 0.10
+    tile_shuffle_gh: 2
+    tile_shuffle_gw: 2
+
+    blur_noise_p: 0.10
+
+  valid:
+    dummy: 0
+
+# ==========
+# model（backbone固定）
+# ==========
+model:
+  backbone: convnext_small
+  pretrained: true
+  in_chans: 3
+  drop_rate: 0.0
+  drop_path_rate: 0.10
+  head_dropout: 0.0
+  fuse: concat
+
+  aux_hidden_dim: 256
+  aux_dropout: 0.10
+
+# ==========
+# aux
+# ==========
+aux:
+  enabled: true
+  warmup_epochs: 10
+
+  species:
+    enabled: true
+    col: Species
+    weight: 0.05
+    label_smoothing: 0.05
+    ignore_index: -1
+
+  ndvi:
+    enabled: true
+    col: Pre_GSHH_NDVI
+    weight: 0.02
+    loss: huber
+    beta: 0.1
+
+  height:
+    enabled: true
+    col: Height_Ave_cm
+    weight: 0.02
+    loss: huber
+    beta: 5.0
+
+# ==========
+# training
+# ==========
+train:
+  epochs: 60
+  batch_size: 16
+  grad_accum_steps: 1
+  max_norm: 3.0
+  log_interval: 50
+  val_interval: 1
+
+early_stopping:
+  enabled: true
+  patience: 15
+  min_delta: 0.0
+
+ema:
+  enabled: false
+  decay: 0.99
+
+# ==========
+# optimizer（schedulerは固定＝実質無効）
+# ==========
+optimizer:
+  name: adamw
+  base_lr: 0.0001
+  weight_decay: 0.0002
+  betas: [0.9, 0.999]
+
+# scheduler（このSweepスクリプトでは constant にするので実質使わない）
+scheduler:
+  name: none
+
+# ==========
+# loss
+# ==========
+loss:
+  name: mixed_log_raw
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+
+  alpha_raw: 0.05
+  alpha_warmup_epochs: 0
+
+  raw_loss: mse          # mse | huber
+  raw_huber_beta: 10.0
+
+  log_clip_min: -20.0
+  log_clip_max: 20.0
+
+  lambda_consistency: 0.5
+  consistency_loss: huber
+  consistency_beta: 10.0
+  consistency_warmup_epochs: 10
+
+metric:
+  name: weighted_r2
+  weights: [0.1, 0.1, 0.1, 0.2, 0.5]

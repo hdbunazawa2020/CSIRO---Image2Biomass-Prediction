@@ -1,4 +1,4 @@
-exp: 001_preprocess_ver03
+exp: 001_preprocess_ver04
 seed: 1129
 debug: false
 
@@ -11,7 +11,7 @@ pivot_csv_name: df_pivot.csv
 # =========================
 # CV / Fold settings
 # =========================
-n_splits: 4
+n_splits: 3
 fold_col: Fold
 
 # group（リーク防止）
@@ -21,7 +21,7 @@ group_cols: [Sampling_Date] # State
 # Sampling_Date を group に使うときの粒度:
 # - day   : その日単位
 # - month : 月単位（Discussionでも month が良いという話が多い）
-sampling_date_group: month   # ←まず day で。次に month を試すのがおすすめ
+sampling_date_group: day   # ←まず day で。次に month を試すのがおすすめ
 
 # =========================
 # stratify settings
@@ -67,17 +67,17 @@ seed_search:
   # score の重み（大きいほど厳しく抑える）
   # mean だけでなく max 偏差も入れて、fold1-3の事故を抑える
   score_weights:
-    size_cv: 1.0
+    size_cv: 1.0 # 各foldのサンプル数のバラつき（変動係数 = std/mean）
 
-    state_l1_mean: 1.0
-    state_l1_max: 0.7
-    missing_state_pairs: 2.0
+    state_l1_mean: 1.0 # 	各foldの State 分布と、全体の State 分布の L1距離（平均との差） の平均
+    state_l1_max: 0.7 # 各foldの State 分布と、全体の State 分布の L1距離（平均との差） の最大値
+    missing_state_pairs: 2.0 # stateペアの欠損数（foldに存在しない stateペアの数）
 
-    bin_l1_mean: 0.3
-    bin_l1_max: 0.3
+    bin_l1_mean: 0.3 # 各foldの target bin 分布と、全体の target bin 分布の L1距離（平均との差） の平均
+    bin_l1_max: 0.3 # 各foldの target bin 分布と、全体の target bin 分布の L1距離（平均との差） の最大値
 
-    zero_rate_mae: 0.7
-    zero_rate_maxdev: 0.7
+    zero_rate_mae: 0.7 # 各foldの zero_rate と、全体の zero_rate の MAE
+    zero_rate_maxdev: 0.7 # 各foldの zero_rate と、全体の zero_rate の最大偏差
 
-    high_rate_mae: 0.7
-    high_rate_maxdev: 0.7
+    high_rate_mae: 0.7 # 各foldの high Total rate と、全体の high Total rate の MAE
+    high_rate_maxdev: 0.7 # 各foldの high Total rate と、全体の high Total rate の最大偏差

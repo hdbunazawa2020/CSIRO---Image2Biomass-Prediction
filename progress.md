@@ -45,11 +45,14 @@
 | 26/01/03 | exp028  | 001_preprocess_ver01 | 0-3/4fold | convnext_base | 200 | exp027+lr_scheduler追加 | lr schedulerの効果はそこまでなし | 0.756  | 0.58 |
 | 26/01/03 | exp029  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp028+dataset変更 | CVは見た目上落ちる | 0.705  | - |
 | 26/01/03 | exp030  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp027+dataset変更 | Schedulerあり(exp029)より少し良い | 0.713  | 0.59 |
-| 26/01/04 | exp031  | 001_preprocess_ver02 | 0-3/4fold | tf_efficientnetv2_s | 400 | exp030+model変更 | 学習率が低すぎて学習が進んでいなかった | 0.311 | - |
+| 26/01/04 | exp031  | 001_preprocess_ver02 | 0-3/4fold | tf_efficientnetv2_s | 400 | exp030+model変更(ConvNextAuxRegressor) | 学習率が低すぎて学習が進んでいなかった | 0.311 | - |
 | 26/01/04 | exp032  | 001_preprocess_ver03 | 0-3/4fold | convnext_base | 400 | exp030+dataset変更 | - | 0.700 | - |
-| 26/01/04 | exp033  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 400 | exp030+dataset変更(3-fold) | あまり変わらず | 0.709 | 0.59 |
-| 26/01/06 | exp034  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 400 | crip_crop_modelをトライ | - | - | - |
-| 26/01/06 | exp035  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 400 | exp034+Lrを10倍 | - | - | - |
+| 26/01/05 | exp033  | 001_preprocess_ver03 | 0-3/4fold | convnext_base | 400 | exp032がimg_size224でやってしまったので288に変更 | - | 0.700 | 0.59 |
+| 26/01/05 | exp034  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 400 | exp030+dataset変更(3-fold) | あまり変わらず | 0.709 | 0.59 |
+| 26/01/06 | exp035  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | crip_crop_modelをトライ(ConvNextSplitcropAuxRegressor) | - | 0.575 | 0.590 |
+| 26/01/06 | exp036  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp035+Lrを10倍 | - | 0.323 | - |
+| 26/01/07 | exp037  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | wandb_sweepの最適条件 | - | 0.667 | 0.57 |
+| 26/01/07 | exp038  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | loss_weight=[0.1,0.1,0.1,0,0]として3週類だけを調整 | - | - | - |
 
 
 

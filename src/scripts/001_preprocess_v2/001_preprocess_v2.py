@@ -30,19 +30,6 @@ print(f"TODAY is {date}")
 
 
 # ============================================================
-# Helpers: config access
-# ============================================================
-def cfg_get(d: Dict[str, Any], key: str, default: Any = None) -> Any:
-    """dictのネストを 'a.b.c' で安全に取る."""
-    cur = d
-    for k in key.split("."):
-        if not isinstance(cur, dict) or k not in cur:
-            return default
-        cur = cur[k]
-    return cur
-
-
-# ============================================================
 # Helpers: group key / stratify label
 # ============================================================
 def build_group_array(
@@ -379,7 +366,7 @@ def build_folds_for_seed(
             state_col=state_col,
             target_col=target_col,
             use_log1p=use_log1p,
-            n_bins=1,
+            n_bins=1, # bins を使わないので1でOK
             presence_targets=[],
             presence_threshold_g=presence_threshold_g,
             add_state=False,

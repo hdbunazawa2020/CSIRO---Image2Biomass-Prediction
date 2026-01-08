@@ -1,7 +1,8 @@
 # ==========
 # general
 # ==========
-exp: 103_train_exp036   # TODO: 実験連番
+exp: 103_train_exp038
+   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -25,7 +26,7 @@ ddp:
 # ==========
 input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
 pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
-preprocess_ver: 001_preprocess_ver02
+preprocess_ver: 001_preprocess_ver04
 pivot_csv_name: df_pivot.csv
 
 output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
@@ -34,7 +35,7 @@ output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experime
 # CV
 # ==========
 fold_col: Fold
-folds: [0,1,2,3]          # [0,1,2,3,4] など
+folds: [0,1,2]          # [0,1,2,3,4] など
 
 # =======================================
 # targets (order MUST match metric.py)
@@ -61,28 +62,28 @@ normalize:
 
 augment:
   train:
-    hflip_p: 0.5
+    hflip_p: 0.0
     vflip_p: 0.5
     rotate90_p: 0.5
-    shift_scale_rotate_p: 0.15
+    shift_scale_rotate_p: 0.5
     color_jitter_p: 0.3
     # coarse dropout
-    coarse_dropout_p: 0.15
+    coarse_dropout_p: 0.0
     coarse_dropout_max_holes: 16
     coarse_dropout_min_h: 16
     coarse_dropout_min_w: 16
     coarse_dropout_max_h: 64
     coarse_dropout_max_w: 64
     # tile shuffle
-    tile_shuffle_p: 0.10
+    tile_shuffle_p: 0.1
     tile_shuffle_gh: 2
     tile_shuffle_gw: 2
     # blur / noise
-    blur_noise_p: 0.10
+    blur_noise_p: 0.1
   valid:
     # validは resize + normalize のみ
     dummy: 0
-
+    
 # ==========================
 # MixUp / CutMix (train only)
 # ==========================
@@ -121,19 +122,19 @@ aux:
   species:
     enabled: true
     col: Species
-    weight: 0.05           # ★小さく開始（効きすぎると主タスクを壊す）
+    weight: 0.08           # ★小さく開始（効きすぎると主タスクを壊す）
     label_smoothing: 0.05
     ignore_index: -1
   ndvi:
     enabled: true
     col: Pre_GSHH_NDVI
-    weight: 0.02
+    weight: 0.01
     loss: huber
     beta: 0.1
   height:
     enabled: true
     col: Height_Ave_cm
-    weight: 0.02
+    weight: 0.01
     loss: huber
     beta: 5.0
 
@@ -141,7 +142,7 @@ aux:
 # training
 # ==========
 train:
-  epochs: 200
+  epochs: 400
   batch_size: 16
   grad_accum_steps: 1
   max_norm: 3.0
@@ -162,15 +163,15 @@ ema:
 # =========================
 optimizer:
   name: adamw
-  base_lr: 0.0001136562991924597 # 1e-4 #  1e-4
-  weight_decay: 0.00023433482410557073 # 0.05 # 1e-5
+  base_lr: 0.00000836204081082805 # 1e-4 #  1e-4
+  weight_decay: 0.00027925126101005157 # 0.05 # 1e-5
   betas: [0.9, 0.999]
 
 scheduler:
   name: warmup_cosine
-  base_lr: 0.0001136562991924597 # 1e-4
-  max_lr: 0.0001136562991924597 # 1e-4 #  5e-4
-  min_lr: 0.0001136562991924597 # 1e-4 # 1e-6
+  base_lr: 0.00000836204081082805 # 1e-4
+  max_lr: 0.00000836204081082805 # 1e-4 #  5e-4
+  min_lr: 0.00000836204081082805 # 1e-4 # 1e-6
   warmup_ratio: 0.05   # warmup_steps が null のときに使う
   warmup_steps: null
   total_steps: null
@@ -194,9 +195,9 @@ scheduler:
 # ===================================================
 loss:
   name: mixed_log_raw
-  weights: [0.1, 0.1, 0.1, 0.2, 0.5] # [0.1, 0.1, 0.1, 0.2, 0.5]
+  weights: [0.1, 0.1, 0.1, 0.0, 0.0] # [0.1, 0.1, 0.1, 0.2, 0.5]
   # ★ まずは小さめから（rawのスケールが大きいので）
-  alpha_raw: 0.05
+  alpha_raw: 0.02
   alpha_warmup_epochs: 0 # 10
   # まずはMSE（高値域を強く詰めたい）
   raw_loss: mse # mse
@@ -204,9 +205,9 @@ loss:
   log_clip_min: -20.0
   log_clip_max: 20.0
   # 追加: soft整合（まずは小さく）
-  lambda_consistency: 0.5
+  lambda_consistency: 0.2
   consistency_loss: "huber"
-  consistency_beta: 10.0
+  consistency_beta: 20.0
   # 任意: 整合は遅らせたいなら
   consistency_warmup_epochs: 20
 

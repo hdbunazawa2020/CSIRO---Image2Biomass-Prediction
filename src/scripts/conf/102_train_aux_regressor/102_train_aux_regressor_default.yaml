@@ -1,7 +1,7 @@
 # ==========
 # general
 # ==========
-exp: 102_train_exp030   # TODO: 実験連番
+exp: 102_train_exp034   # TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -25,7 +25,7 @@ ddp:
 # ==========
 input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
 pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
-preprocess_ver: 001_preprocess_ver02
+preprocess_ver: 001_preprocess_ver03
 pivot_csv_name: df_pivot.csv
 
 output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
@@ -34,7 +34,7 @@ output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experime
 # CV
 # ==========
 fold_col: Fold
-folds: [0,1,2,3]          # [0,1,2,3,4] など
+folds: [0,1,2]          # [0,1,2,3,4] など
 
 # =======================================
 # targets (order MUST match metric.py)
@@ -58,10 +58,10 @@ normalize:
 
 augment:
   train:
-    hflip_p: 0.25 # 0.5
+    hflip_p: 0.5 # 0.5
     vflip_p: 0.5
     rotate_limit: 0 # 10
-    shift_scale_rotate_p: 0.5 # 0.2
+    shift_scale_rotate_p: 0.0 # 0.2
     color_jitter_p: 0.2 # 0.2
   valid:
     # validは resize + normalize のみ
@@ -103,19 +103,19 @@ aux:
   species:
     enabled: true
     col: Species
-    weight: 0.05           # ★小さく開始（効きすぎると主タスクを壊す）
+    weight: 0.08           # ★小さく開始（効きすぎると主タスクを壊す）
     label_smoothing: 0.05
     ignore_index: -1
   ndvi:
     enabled: true
     col: Pre_GSHH_NDVI
-    weight: 0.02
+    weight: 0.01
     loss: huber
     beta: 0.1
   height:
     enabled: true
     col: Height_Ave_cm
-    weight: 0.02
+    weight: 0.01
     loss: huber
     beta: 5.0
 
@@ -123,8 +123,8 @@ aux:
 # training
 # ==========
 train:
-  epochs: 200
-  batch_size: 32
+  epochs: 400
+  batch_size: 16
   grad_accum_steps: 1
   max_norm: 3.0
   log_interval: 50
@@ -136,8 +136,8 @@ early_stopping:
   min_delta: 0.0
 
 ema:
-  enabled: false # true
-  decay: 0.0 # 0.95
+  enabled: true # true
+  decay: 0.99 # 0.95
 
 # =========================
 # optimizer & scheduler
@@ -178,7 +178,7 @@ loss:
   name: mixed_log_raw
   weights: [0.1, 0.1, 0.1, 0.2, 0.5] # [0.1, 0.1, 0.1, 0.2, 0.5]
   # ★ まずは小さめから（rawのスケールが大きいので）
-  alpha_raw: 0.05
+  alpha_raw: 0.02 # 0.05
   alpha_warmup_epochs: 0 # 10
   # まずはMSE（高値域を強く詰めたい）
   raw_loss: mse # mse

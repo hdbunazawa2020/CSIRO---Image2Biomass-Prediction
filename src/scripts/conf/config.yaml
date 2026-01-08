@@ -7,3 +7,6 @@ defaults:
 - 201_wandb_bmh_sweep: 201_wandb_bmh_sweep_default
 - 001_preprocess_v2: 001_preprocess_v2_default
 - 900_evaluate_oof: 900_evaluate_oof_default
+- 102_train_aux_regressor: 102_train_aux_regressor_default
+- 103_train_splitcrop_aux_regressor: 103_train_splitcrop_aux_regressor_default
+- 203_wandb_splitcropauxregressor: 203_wandb_splitcropauxregressor_default
