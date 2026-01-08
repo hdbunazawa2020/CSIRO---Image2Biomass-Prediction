@@ -52,7 +52,9 @@
 | 26/01/06 | exp035  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | crip_crop_modelをトライ(ConvNextSplitcropAuxRegressor) | - | 0.575 | 0.590 |
 | 26/01/06 | exp036  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp035+Lrを10倍 | - | 0.323 | - |
 | 26/01/07 | exp037  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | wandb_sweepの最適条件 | - | 0.667 | 0.57 |
-| 26/01/07 | exp038  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | loss_weight=[0.1,0.1,0.1,0,0]として3週類だけを調整 | - | - | - |
+| 26/01/08 | exp038  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | loss_weight=[0.1,0.1,0.1,0,0]として3週類だけを調整 | - | -1.23 | -1.29 |
+| 26/01/08 | exp039  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | ConvNextSplitcropAuxRegressorの出力を3種類->出力後に加算して5クラス | - | - | - |
+| 26/01/08 | exp040  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | exp039+loss_weight=[0.1,0.1,0.1,0.1,0.1] | - | - | - |
 
 
 
