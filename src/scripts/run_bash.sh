@@ -9,7 +9,7 @@ PROJECT_ROOT="/mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction"
 SCRIPT_PATH="$PROJECT_ROOT/src/scripts/103_train_splitcrop_aux_regressor/103_train_splitcrop_aux_regressor.py"
 NUM_GPUS=2
 
-MASTER_PORT=29504
+MASTER_PORT=29500
 
 # ★ WANDB_API_KEY をここに書く場合（※ git管理しないこと！）
 export WANDB_API_KEY="local-73f67a791cf323a6e8cd6e10844f6f50dace4076"
