@@ -1,0 +1,91 @@
+# ==========
+# general
+# ==========
+exp: 104_train_exp047 # TODO: 毎回、実験の連番を変える
+seed: 1129
+debug: false
+device: cuda
+use_amp: true
+num_workers: 12
+pin_memory: true
+persistent_workers: true
+# WandB
+use_wandb: true
+competition: Csiro-Image2BiomassPrediction
+author: hidebu
+wandb_log_interval_steps: 100
+# DDP
+ddp:
+  enabled: true
+  backend: nccl
+  find_unused_parameters: true
+
+# ==========
+# paths
+# ==========
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+preprocess_ver: 010_preprocess_from_publicnotebook
+pivot_csv_name: df_pivot.csv
+
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
+
+# ==========
+# CV
+# ==========
+fold_col: Fold
+folds: [0,1,2,3,4]
+
+# =======================================
+# targets (order MUST match metric.py)
+# =======================================
+target_cols:
+  - Dry_Clover_g
+  - Dry_Dead_g
+  - Dry_Green_g
+  - Dry_Total_g
+  - GDM_g
+n_targets: 3
+targets_configs:
+  - Dry_Clover_g
+  - Dry_Dead_g
+  - Dry_Green_g
+weights: [0.1, 0.1, 0.1, 0.0, 0.0]
+
+
+# =======================
+# image / augmentation
+# =======================
+img_h: 448
+img_w: 448
+in_chans: 3
+
+# ==========
+# training
+# ==========
+train:
+  epochs: 20
+  batch_size: 8
+  lr: 1e-3
+  eta_min: 1e-5
+  weight_decay: 1e-6
+train_backbone: true # false
+
+# ==========
+# model
+# ==========
+model:
+  backbone: facebook/dinov2-large
+  hidden_dim: 512
+  dropout: 0.1
+
+# =========================
+# optimizer & scheduler
+# =========================
+optimizer:
+  name: adamw
+  weight_decay: 1e-3
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: cosine_annealing

@@ -53,10 +53,13 @@
 | 26/01/06 | exp036  | 001_preprocess_ver02 | 0-3/4fold | convnext_base | 200 | exp035+Lrを10倍 | - | 0.323 | - |
 | 26/01/07 | exp037  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | wandb_sweepの最適条件 | - | 0.667 | 0.57 |
 | 26/01/08 | exp038  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | loss_weight=[0.1,0.1,0.1,0,0]として3週類だけを調整 | - | -1.23 | -1.29 |
-| 26/01/08 | exp039  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | ConvNextSplitcropAuxRegressorの出力を3種類->出力後に加算して5クラス | - | 0.671 | - |
-| 26/01/08 | exp040  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | exp039+loss_weight=[0.1,0.1,0.1,0.1,0.1] | - | 0.659 | - |
-| 26/01/09 | exp041  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | alpha_raw=0.1と強めに入れる | - | 0.688 | - |
-| 26/01/09 | exp042  | 001_preprocess_ver04 | 0-2/3fold | convnext_base | 200 | exp041+alpha_raw=0.05 | - | 0.693 | - |
+| 26/01/08 | exp039  | 001_preprocess_ver04 | 0-2/3fold | convnext_small | 200 | ConvNextSplitcropAuxRegressorの出力を3種類->出力後に加算して5クラス | CVは良かったがLBは上がらず | 0.671 | 0.58 |
+| 26/01/08 | exp040  | 001_preprocess_ver04 | 0-2/3fold | convnext_small | 200 | exp039+loss_weight=[0.1,0.1,0.1,0.1,0.1] | LB上がらず | 0.659 | 0.57 |
+| 26/01/09 | exp041  | 001_preprocess_ver04 | 0-2/3fold | convnext_small | 400 | alpha_raw=0.1と強めに入れる | LB上がらず | 0.688 | 0.57 |
+| 26/01/09 | exp042  | 001_preprocess_ver04 | 0-2/3fold | convnext_small | 400 | exp041+alpha_raw=0.05 | raw強めの方が良い？ | 0.693 | 0.55 |
+| 26/01/09 | exp044  | 001_preprocess_ver04 | 0-2/3fold | convnext_small | 400 | augmentationを色々加えてみる | 効果なし | 0.673 | 0.57 |
+| 26/01/11 | exp046  | - | 0-4/5fold | dino_v2 | 20 | 公開ノートブックからコピー | とりあえず実装 | − | 0.55 |
+| 26/01/11 | exp047  | - | 0-4/5fold | dino_v2 | 20 | exp046+layerNorm層もFT | - | − | 0.56 |
 
 
 
