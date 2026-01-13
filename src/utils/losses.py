@@ -819,6 +819,13 @@ class BiomassAuxLossWrapper(nn.Module):
         self.species_label_smoothing = float(_cfg_get(sp_cfg, "label_smoothing", 0.0))
         self.species_ignore_index = int(_cfg_get(sp_cfg, "ignore_index", -1))
 
+        # ---- State（分類） ----
+        st_cfg = _cfg_get(aux_cfg, "state", None)
+        self.use_state = bool(_cfg_get(st_cfg, "enabled", False))
+        self.state_weight = float(_cfg_get(st_cfg, "weight", 0.0))
+        self.state_label_smoothing = float(_cfg_get(st_cfg, "label_smoothing", 0.0))
+        self.state_ignore_index = int(_cfg_get(st_cfg, "ignore_index", -1))
+
         # ---- NDVI（回帰） ----
         ndvi_cfg = _cfg_get(aux_cfg, "ndvi", None)
         self.use_ndvi = bool(_cfg_get(ndvi_cfg, "enabled", False))
@@ -942,6 +949,41 @@ class BiomassAuxLossWrapper(nn.Module):
             out["loss_aux_species"] = ce.detach()
             out["aux_species_valid_rate"] = logits.new_tensor(valid.float().mean().item())
             loss_aux = loss_aux + float(self.species_weight) * ce
+
+        # -------------------------
+        # 3) State分類（NaN対策版）
+        # -------------------------
+        if self.use_state and (self.state_weight > 0.0):
+            logits = aux_pred["state_logits"]  # (B, C)
+            y = aux_tgt["state"].to(device=logits.device, dtype=torch.long)
+            valid = (y != self.state_ignore_index)
+            valid_count = int(valid.sum().item())
+
+            if valid_count == 0:
+                ce = logits.new_tensor(0.0)
+            else:
+                # reduction='sum' で計算し、valid件数で割って mean 相当にする
+                try:
+                    ce_sum = F.cross_entropy(
+                        logits,
+                        y,
+                        ignore_index=self.species_ignore_index,
+                        label_smoothing=self.species_label_smoothing,
+                        reduction="sum",
+                    )
+                except TypeError:
+                    ce_sum = F.cross_entropy(
+                        logits,
+                        y,
+                        ignore_index=self.species_ignore_index,
+                        reduction="sum",
+                    )
+
+                ce = ce_sum / (valid.sum().clamp_min(1).float())
+
+            out["loss_aux_state"] = ce.detach()
+            out["aux_state_valid_rate"] = logits.new_tensor(valid.float().mean().item())
+            loss_aux = loss_aux + float(self.state_weight) * ce
 
         # -------------------------
         # 4) NDVI回帰

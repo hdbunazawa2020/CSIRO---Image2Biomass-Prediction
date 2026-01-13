@@ -72,6 +72,7 @@ class CsiroDataset(Dataset):
         # aux
         aux_cfg: Any = None,
         species_to_index: Optional[Dict[str, int]] = None,
+        states_to_index: Optional[Dict[str, int]] = None,
         aux_cols: Optional[Dict[str, str]] = None,
         # split/crop
         use_split_crop: bool = True,
@@ -128,25 +129,28 @@ class CsiroDataset(Dataset):
         self.aux_cfg = aux_cfg
         self.aux_enabled = bool(getattr(aux_cfg, "enabled", False)) if aux_cfg is not None else False
         self.species_to_index = species_to_index or {}
-
+        self.states_to_index = states_to_index or {}
         # aux列名（aux_colsが無いなら aux_cfg から推定）
         if aux_cols is None:
             sp_col = "Species"
             ndvi_col = "Pre_GSHH_NDVI"
             h_col = "Height_Ave_cm"
+            st_col = "State"
 
             if aux_cfg is not None:
                 sp_col = str(getattr(getattr(aux_cfg, "species", None), "col", sp_col))
+                st_col = str(getattr(getattr(aux_cfg, "state", None), "col", st_col))  # ★追加
                 ndvi_col = str(getattr(getattr(aux_cfg, "ndvi", None), "col", ndvi_col))
                 h_col = str(getattr(getattr(aux_cfg, "height", None), "col", h_col))
 
-            self.aux_cols = {"species": sp_col, "ndvi": ndvi_col, "height": h_col}
-        else:
-            self.aux_cols = dict(aux_cols)
+                self.aux_cols = {"species": sp_col, "state": st_col, "ndvi": ndvi_col, "height": h_col}  # ★追加
+            else:
+                self.aux_cols = dict(aux_cols)
 
-        # ---- aux を前計算（df.iloc を避ける）----
+        # ---- aux を前計算 ----
         n = len(self.df)
         self._species_id = np.full(n, -1, dtype=np.int64)
+        self._state_id   = np.full(n, -1, dtype=np.int64)    # ★追加
         self._ndvi = np.zeros(n, dtype=np.float32)
         self._ndvi_mask = np.zeros(n, dtype=np.float32)
         self._height = np.zeros(n, dtype=np.float32)
@@ -162,6 +166,17 @@ class CsiroDataset(Dataset):
                         continue
                     key = str(v)
                     self._species_id[i] = int(self.species_to_index.get(key, -1))
+
+            # ★追加: State
+            st_col = self.aux_cols["state"]
+            if st_col in self.df.columns:
+                st_vals = self.df[st_col].values
+                for i, v in enumerate(st_vals):
+                    if pd.isna(v):
+                        continue
+                    key = str(v)
+                    self._state_id[i] = int(self.states_to_index.get(key, -1))
+
             # NDVI
             ndvi_col = self.aux_cols["ndvi"]
             if ndvi_col in self.df.columns:
@@ -295,6 +310,7 @@ class CsiroDataset(Dataset):
         if self.aux_enabled:
             out["aux_target"] = {
                 "species": torch.tensor(self._species_id[idx], dtype=torch.long),
+                "state":   torch.tensor(self._state_id[idx], dtype=torch.long),   # ★追加
                 "ndvi": torch.tensor(self._ndvi[idx], dtype=torch.float32),
                 "ndvi_mask": torch.tensor(self._ndvi_mask[idx], dtype=torch.float32),
                 "height": torch.tensor(self._height[idx], dtype=torch.float32),

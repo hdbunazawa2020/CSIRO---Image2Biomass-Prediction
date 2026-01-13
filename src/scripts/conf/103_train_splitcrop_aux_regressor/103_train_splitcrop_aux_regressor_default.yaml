@@ -1,8 +1,8 @@
 # ==========
 # general
 # ==========
-exp: 103_train_exp042
-  # TODO: 実験連番
+exp: 103_train_exp045
+# TODO: 実験連番
 seed: 1129
 debug: false
 device: cuda
@@ -63,7 +63,7 @@ normalize:
 augment:
   train:
     hflip_p: 0.5
-    vflip_p: 0.0
+    vflip_p: 0.0 # 0.0
     rotate90_p: 0.25
     shift_scale_rotate_p: 0.10
     color_jitter_p: 0.20
@@ -75,11 +75,11 @@ augment:
     coarse_dropout_max_h: 64
     coarse_dropout_max_w: 64
 
-    tile_shuffle_p: 0.0
+    tile_shuffle_p: 0.1 # 0.0
     tile_shuffle_gh: 2
     tile_shuffle_gw: 2
 
-    blur_noise_p: 0.0
+    blur_noise_p: 0.05 # 0.0
 
   valid:
     dummy: 0
@@ -117,6 +117,13 @@ aux:
   species:
     enabled: true
     col: Species
+    weight: 0.03
+    label_smoothing: 0.05
+    ignore_index: -1
+
+  states:
+    enabled: true
+    col: State
     weight: 0.03
     label_smoothing: 0.05
     ignore_index: -1
@@ -178,7 +185,7 @@ scheduler:
 # ===================================================
 loss:
   name: mixed_log_raw
-  weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+  weights: [0.1, 0.1, 0.1, 0.0, 0.0]
 
   # ★ Run2: alpha_rawを下げて比較
   alpha_raw: 0.05

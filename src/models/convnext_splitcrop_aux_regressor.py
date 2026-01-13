@@ -54,6 +54,7 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
         # aux
         aux_cfg: Optional[Any] = None,
         num_species: int = 0,
+        num_states: int = 0,              # ★追加
         aux_hidden_dim: int = 256,
         aux_dropout: float = 0.1,
 
@@ -123,7 +124,18 @@ class ConvNeXtSplitCropAuxRegressor(nn.Module):
                     nn.Dropout(aux_dropout),
                     nn.Linear(aux_hidden_dim, int(num_species)),
                 )
-
+            # ★追加: State
+            st_cfg = _cfg_get(aux_cfg, "state", None)
+            st_on = bool(_cfg_get(st_cfg, "enabled", False)) and float(_cfg_get(st_cfg, "weight", 0.0)) > 0.0
+            if st_on:
+                if int(num_states) <= 0:
+                    raise ValueError("aux.state enabled but num_states<=0")
+                self.aux_heads["state_logits"] = nn.Sequential(
+                    nn.Linear(fused_dim, aux_hidden_dim),
+                    nn.GELU(),
+                    nn.Dropout(aux_dropout),
+                    nn.Linear(aux_hidden_dim, int(num_states)),
+                )
             # NDVI
             ndvi_cfg = _cfg_get(aux_cfg, "ndvi", None)
             ndvi_on = bool(_cfg_get(ndvi_cfg, "enabled", False)) and float(_cfg_get(ndvi_cfg, "weight", 0.0)) > 0.0

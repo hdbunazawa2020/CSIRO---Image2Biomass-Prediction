@@ -150,32 +150,70 @@ def load_base_cfg(base_cfg_path: Path) -> DictConfig:
 #         },
 #     }
 
-def default_sweep_config() -> Dict[str, Any]:
-    """このスクリプト内蔵の sweep config（外部yaml不要版）。
+# def default_sweep_config() -> Dict[str, Any]:
+#     """このスクリプト内蔵の sweep config（外部yaml不要版）。
 
-    Notes:
-        ここを編集すると探索範囲を簡単に変えられます。
-    """
+#     Notes:
+#         ここを編集すると探索範囲を簡単に変えられます。
+#     """
+#     return {
+#         "method": "random",
+#         "metric": {"name": "best/weighted_r2", "goal": "maximize"},
+#         "parameters": {
+#             # --- core ---
+#             "epochs": {"values": [200]},
+#             "batch_size": {"values": [8, 16, 20]},
+#             "img_size": {"values": [224, 256, 288, 320]},
+
+#             # --- optimizer ---
+#             "lr": {"distribution": "log_uniform_values", "min": 5e-6, "max": 5e-4},
+#             "weight_decay": {"distribution": "log_uniform_values", "min": 1e-6, "max": 5e-3},
+
+#             # --- loss ---
+#             "alpha_raw": {"values": [0.0, 0.02, 0.05, 0.10]},
+#             "raw_loss": {"values": ["mse", "huber"]},
+#             "raw_huber_beta": {"values": [5.0, 10.0, 20.0]},
+#             "lambda_consistency": {"values": [0.0, 0.2, 0.5, 1.0]},
+#             "consistency_loss": {"values": ["huber", "mse"]},
+#             "consistency_beta": {"values": [5.0, 10.0, 20.0]},
+
+#             # --- augmentation ---
+#             "hflip_p": {"values": [0.0, 0.25, 0.5]},
+#             "vflip_p": {"values": [0.0, 0.25, 0.5]},
+#             "rotate90_p": {"values": [0.0, 0.25, 0.5]},
+#             "shift_scale_rotate_p": {"values": [0.0, 0.10, 0.15]},
+#             "color_jitter_p": {"values": [0.0, 0.20, 0.30]},
+#             "coarse_dropout_p": {"values": [0.0, 0.10, 0.15]},
+#             "tile_shuffle_p": {"values": [0.0, 0.05, 0.10]},
+#             "blur_noise_p": {"values": [0.0, 0.05, 0.10]},
+
+#             # --- aux weights（必要なら探索）---
+#             "aux_species_w": {"values": [0.0, 0.03, 0.05, 0.08]},
+#             "aux_ndvi_w": {"values": [0.0, 0.01, 0.02, 0.05]},
+#             "aux_height_w": {"values": [0.0, 0.01, 0.02, 0.05]},
+#             "aux_warmup_epochs": {"values": [0, 5, 10, 20]},
+#         },
+#     }
+def default_sweep_config() -> Dict[str, Any]:
     return {
-        "method": "random",
+        "method": "bayes",
         "metric": {"name": "best/weighted_r2", "goal": "maximize"},
         "parameters": {
             # --- core ---
-            "epochs": {"values": [200]},
-            "batch_size": {"values": [8, 16, 20]},
-            "img_size": {"values": [224, 256, 288, 320]},
+            "epochs": {"value": 200},   # まず固定（早期終了もあるし）
+            "batch_size": {"values": [16, 20, 32, 64]},
 
-            # --- optimizer ---
-            "lr": {"distribution": "log_uniform_values", "min": 5e-6, "max": 5e-4},
-            "weight_decay": {"distribution": "log_uniform_values", "min": 1e-6, "max": 5e-3},
+            # img_h/img_w をペアで探索（バグりにくい）
+            "img_hw": {"values": ["224x224", "256x256", "288x288", "320x320"]},
 
-            # --- loss ---
-            "alpha_raw": {"values": [0.0, 0.02, 0.05, 0.10]},
-            "raw_loss": {"values": ["mse", "huber"]},
-            "raw_huber_beta": {"values": [5.0, 10.0, 20.0]},
-            "lambda_consistency": {"values": [0.0, 0.2, 0.5, 1.0]},
-            "consistency_loss": {"values": ["huber", "mse"]},
-            "consistency_beta": {"values": [5.0, 10.0, 20.0]},
+            # --- LRは固定（ユーザー方針） ---
+            "lr": {"value": 8.36204081082805e-06},
+            "weight_decay": {"values": [1e-5, 2e-4, 5e-4]},
+
+            # --- CutMix ---
+            "mixing_enabled": {"values": [False, True]},
+            "mixing_p": {"values": [0.10, 0.20, 0.30]},
+            "cutmix_alpha": {"values": [0.5, 1.0, 1.5]},
 
             # --- augmentation ---
             "hflip_p": {"values": [0.0, 0.25, 0.5]},
@@ -187,14 +225,22 @@ def default_sweep_config() -> Dict[str, Any]:
             "tile_shuffle_p": {"values": [0.0, 0.05, 0.10]},
             "blur_noise_p": {"values": [0.0, 0.05, 0.10]},
 
-            # --- aux weights（必要なら探索）---
-            "aux_species_w": {"values": [0.0, 0.03, 0.05, 0.08]},
-            "aux_ndvi_w": {"values": [0.0, 0.01, 0.02, 0.05]},
-            "aux_height_w": {"values": [0.0, 0.01, 0.02, 0.05]},
+            # --- aux weights ---
             "aux_warmup_epochs": {"values": [0, 5, 10, 20]},
+            "aux_species_w": {"values": [0.0, 0.03, 0.05, 0.08]},
+            "aux_state_w":   {"values": [0.0, 0.02, 0.05, 0.08]},
+            "aux_ndvi_w":    {"values": [0.0, 0.01, 0.02, 0.05]},
+            "aux_height_w":  {"values": [0.0, 0.01, 0.02, 0.05]},
+
+            # optional: auxの損失形も探索するなら
+            "aux_species_ls": {"values": [0.0, 0.05]},
+            "aux_state_ls": {"values": [0.0, 0.05]},
+            "aux_ndvi_loss": {"values": ["huber", "mse"]},
+            "aux_ndvi_beta": {"values": [0.05, 0.1, 0.2]},
+            "aux_height_loss": {"values": ["huber", "mse"]},
+            "aux_height_beta": {"values": [2.0, 5.0, 10.0]},
         },
     }
-
 
 # =========================================================
 # wandb overrides
@@ -233,25 +279,53 @@ def default_sweep_config() -> Dict[str, Any]:
 #         "aux_warmup_epochs": int(getattr(cfg_train.aux, "warmup_epochs", 0)) if hasattr(cfg_train, "aux") else 0,
 #     }
 #     return defaults
+# def build_wandb_default_config(cfg_train: DictConfig) -> Dict[str, Any]:
+#     """wandbに渡すデフォルト（フラット）を作る。"""
+#     defaults = {
+#         "fold": int(cfg_train.folds[0]) if len(cfg_train.folds) > 0 else 0,
+#         "epochs": int(cfg_train.train.epochs),
+#         "batch_size": int(cfg_train.train.batch_size),
+
+#         "img_size": int(cfg_train.img_h),
+
+#         "lr": float(cfg_train.optimizer.base_lr),
+#         "weight_decay": float(cfg_train.optimizer.weight_decay),
+
+#         "alpha_raw": float(cfg_train.loss.alpha_raw),
+#         "raw_loss": str(cfg_train.loss.raw_loss),
+#         "raw_huber_beta": float(cfg_train.loss.raw_huber_beta),
+#         "lambda_consistency": float(getattr(cfg_train.loss, "lambda_consistency", 0.0)),
+#         "consistency_loss": str(getattr(cfg_train.loss, "consistency_loss", "huber")),
+#         "consistency_beta": float(getattr(cfg_train.loss, "consistency_beta", 10.0)),
+
+#         "hflip_p": float(cfg_train.augment.train.hflip_p),
+#         "vflip_p": float(getattr(cfg_train.augment.train, "vflip_p", 0.0)),
+#         "rotate90_p": float(getattr(cfg_train.augment.train, "rotate90_p", 0.0)),
+#         "shift_scale_rotate_p": float(getattr(cfg_train.augment.train, "shift_scale_rotate_p", 0.0)),
+#         "color_jitter_p": float(getattr(cfg_train.augment.train, "color_jitter_p", 0.0)),
+#         "coarse_dropout_p": float(getattr(cfg_train.augment.train, "coarse_dropout_p", 0.0)),
+#         "tile_shuffle_p": float(getattr(cfg_train.augment.train, "tile_shuffle_p", 0.0)),
+#         "blur_noise_p": float(getattr(cfg_train.augment.train, "blur_noise_p", 0.0)),
+
+#         "aux_species_w": float(getattr(cfg_train.aux.species, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+#         "aux_ndvi_w": float(getattr(cfg_train.aux.ndvi, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+#         "aux_height_w": float(getattr(cfg_train.aux.height, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+#         "aux_warmup_epochs": int(getattr(cfg_train.aux, "warmup_epochs", 0)) if hasattr(cfg_train, "aux") else 0,
+#     }
+#     return defaults
 def build_wandb_default_config(cfg_train: DictConfig) -> Dict[str, Any]:
-    """wandbに渡すデフォルト（フラット）を作る。"""
     defaults = {
         "fold": int(cfg_train.folds[0]) if len(cfg_train.folds) > 0 else 0,
         "epochs": int(cfg_train.train.epochs),
         "batch_size": int(cfg_train.train.batch_size),
 
-        "img_size": int(cfg_train.img_h),
+        # 互換: img_hw が無い場合もある
+        "img_hw": f"{int(cfg_train.img_h)}x{int(cfg_train.img_w)}",
 
         "lr": float(cfg_train.optimizer.base_lr),
         "weight_decay": float(cfg_train.optimizer.weight_decay),
 
-        "alpha_raw": float(cfg_train.loss.alpha_raw),
-        "raw_loss": str(cfg_train.loss.raw_loss),
-        "raw_huber_beta": float(cfg_train.loss.raw_huber_beta),
-        "lambda_consistency": float(getattr(cfg_train.loss, "lambda_consistency", 0.0)),
-        "consistency_loss": str(getattr(cfg_train.loss, "consistency_loss", "huber")),
-        "consistency_beta": float(getattr(cfg_train.loss, "consistency_beta", 10.0)),
-
+        # augmentation
         "hflip_p": float(cfg_train.augment.train.hflip_p),
         "vflip_p": float(getattr(cfg_train.augment.train, "vflip_p", 0.0)),
         "rotate90_p": float(getattr(cfg_train.augment.train, "rotate90_p", 0.0)),
@@ -261,17 +335,101 @@ def build_wandb_default_config(cfg_train: DictConfig) -> Dict[str, Any]:
         "tile_shuffle_p": float(getattr(cfg_train.augment.train, "tile_shuffle_p", 0.0)),
         "blur_noise_p": float(getattr(cfg_train.augment.train, "blur_noise_p", 0.0)),
 
+        # CutMix
+        "mixing_enabled": bool(getattr(getattr(cfg_train, "mixing", None), "enabled", False)),
+        "mixing_p": float(getattr(getattr(cfg_train, "mixing", None), "p", 0.0)),
+        "cutmix_alpha": float(getattr(getattr(cfg_train, "mixing", None), "cutmix_alpha", 1.0)),
+
+        # aux
+        "aux_warmup_epochs": int(getattr(cfg_train.aux, "warmup_epochs", 0)) if hasattr(cfg_train, "aux") else 0,
         "aux_species_w": float(getattr(cfg_train.aux.species, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+        "aux_state_w":   float(getattr(cfg_train.aux.state, "weight", 0.0)) if (hasattr(cfg_train, "aux") and hasattr(cfg_train.aux, "state")) else 0.0,
         "aux_ndvi_w": float(getattr(cfg_train.aux.ndvi, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
         "aux_height_w": float(getattr(cfg_train.aux.height, "weight", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
-        "aux_warmup_epochs": int(getattr(cfg_train.aux, "warmup_epochs", 0)) if hasattr(cfg_train, "aux") else 0,
+
+        "aux_species_ls": float(getattr(cfg_train.aux.species, "label_smoothing", 0.0)) if hasattr(cfg_train, "aux") else 0.0,
+        "aux_state_ls": float(getattr(cfg_train.aux.state, "label_smoothing", 0.0)) if (hasattr(cfg_train, "aux") and hasattr(cfg_train.aux, "state")) else 0.0,
+        "aux_ndvi_loss": str(getattr(cfg_train.aux.ndvi, "loss", "huber")) if hasattr(cfg_train, "aux") else "huber",
+        "aux_ndvi_beta": float(getattr(cfg_train.aux.ndvi, "beta", 0.1)) if hasattr(cfg_train, "aux") else 0.1,
+        "aux_height_loss": str(getattr(cfg_train.aux.height, "loss", "huber")) if hasattr(cfg_train, "aux") else "huber",
+        "aux_height_beta": float(getattr(cfg_train.aux.height, "beta", 5.0)) if hasattr(cfg_train, "aux") else 5.0,
     }
     return defaults
 
 
+# def apply_wandb_overrides(cfg_train: DictConfig, wcfg: Dict[str, Any]) -> None:
+#     """wandb.config を cfg_train に反映する。"""
+#     OmegaConf.set_struct(cfg_train, False)
 
+#     # fold / epochs / batch
+#     if "fold" in wcfg:
+#         cfg_train.folds = [int(wcfg["fold"])]
+#     if "epochs" in wcfg:
+#         cfg_train.train.epochs = int(wcfg["epochs"])
+#     if "batch_size" in wcfg:
+#         cfg_train.train.batch_size = int(wcfg["batch_size"])
+
+#     # img_size -> img_h/img_w
+#     if "img_size" in wcfg:
+#         s = int(wcfg["img_size"])
+#         cfg_train.img_h = s
+#         cfg_train.img_w = s
+
+#     # optimizer
+#     if "lr" in wcfg:
+#         cfg_train.optimizer.base_lr = float(wcfg["lr"])
+#     if "weight_decay" in wcfg:
+#         cfg_train.optimizer.weight_decay = float(wcfg["weight_decay"])
+
+#     # loss
+#     if "alpha_raw" in wcfg:
+#         cfg_train.loss.alpha_raw = float(wcfg["alpha_raw"])
+#     if "raw_loss" in wcfg:
+#         cfg_train.loss.raw_loss = str(wcfg["raw_loss"])
+#     if "raw_huber_beta" in wcfg:
+#         cfg_train.loss.raw_huber_beta = float(wcfg["raw_huber_beta"])
+
+#     if "lambda_consistency" in wcfg:
+#         cfg_train.loss.lambda_consistency = float(wcfg["lambda_consistency"])
+#     if "consistency_loss" in wcfg:
+#         cfg_train.loss.consistency_loss = str(wcfg["consistency_loss"])
+#     if "consistency_beta" in wcfg:
+#         cfg_train.loss.consistency_beta = float(wcfg["consistency_beta"])
+
+#     # augmentation
+#     if "hflip_p" in wcfg:
+#         cfg_train.augment.train.hflip_p = float(wcfg["hflip_p"])
+#     if "vflip_p" in wcfg:
+#         cfg_train.augment.train.vflip_p = float(wcfg["vflip_p"])
+#     if "rotate90_p" in wcfg:
+#         cfg_train.augment.train.rotate90_p = float(wcfg["rotate90_p"])
+#     if "shift_scale_rotate_p" in wcfg:
+#         cfg_train.augment.train.shift_scale_rotate_p = float(wcfg["shift_scale_rotate_p"])
+#     if "color_jitter_p" in wcfg:
+#         cfg_train.augment.train.color_jitter_p = float(wcfg["color_jitter_p"])
+#     if "coarse_dropout_p" in wcfg:
+#         cfg_train.augment.train.coarse_dropout_p = float(wcfg["coarse_dropout_p"])
+#     if "tile_shuffle_p" in wcfg:
+#         cfg_train.augment.train.tile_shuffle_p = float(wcfg["tile_shuffle_p"])
+#     if "blur_noise_p" in wcfg:
+#         cfg_train.augment.train.blur_noise_p = float(wcfg["blur_noise_p"])
+
+#     # aux weights
+#     if hasattr(cfg_train, "aux"):
+#         if "aux_species_w" in wcfg:
+#             cfg_train.aux.species.weight = float(wcfg["aux_species_w"])
+#         if "aux_ndvi_w" in wcfg:
+#             cfg_train.aux.ndvi.weight = float(wcfg["aux_ndvi_w"])
+#         if "aux_height_w" in wcfg:
+#             cfg_train.aux.height.weight = float(wcfg["aux_height_w"])
+#         if "aux_warmup_epochs" in wcfg:
+#             cfg_train.aux.warmup_epochs = int(wcfg["aux_warmup_epochs"])
+
+#     # backbone固定（安全のため強制）
+#     cfg_train.model.backbone = "convnext_small"
+#     cfg_train.ddp.enabled = False
+#     OmegaConf.set_struct(cfg_train, True)
 def apply_wandb_overrides(cfg_train: DictConfig, wcfg: Dict[str, Any]) -> None:
-    """wandb.config を cfg_train に反映する。"""
     OmegaConf.set_struct(cfg_train, False)
 
     # fold / epochs / batch
@@ -282,11 +440,12 @@ def apply_wandb_overrides(cfg_train: DictConfig, wcfg: Dict[str, Any]) -> None:
     if "batch_size" in wcfg:
         cfg_train.train.batch_size = int(wcfg["batch_size"])
 
-    # img_size -> img_h/img_w
-    if "img_size" in wcfg:
-        s = int(wcfg["img_size"])
-        cfg_train.img_h = s
-        cfg_train.img_w = s
+    # img_hw（"288x288"）
+    if "img_hw" in wcfg:
+        s = str(wcfg["img_hw"]).lower().replace(" ", "")
+        h, w = s.split("x")
+        cfg_train.img_h = int(h)
+        cfg_train.img_w = int(w)
 
     # optimizer
     if "lr" in wcfg:
@@ -294,55 +453,61 @@ def apply_wandb_overrides(cfg_train: DictConfig, wcfg: Dict[str, Any]) -> None:
     if "weight_decay" in wcfg:
         cfg_train.optimizer.weight_decay = float(wcfg["weight_decay"])
 
-    # loss
-    if "alpha_raw" in wcfg:
-        cfg_train.loss.alpha_raw = float(wcfg["alpha_raw"])
-    if "raw_loss" in wcfg:
-        cfg_train.loss.raw_loss = str(wcfg["raw_loss"])
-    if "raw_huber_beta" in wcfg:
-        cfg_train.loss.raw_huber_beta = float(wcfg["raw_huber_beta"])
-
-    if "lambda_consistency" in wcfg:
-        cfg_train.loss.lambda_consistency = float(wcfg["lambda_consistency"])
-    if "consistency_loss" in wcfg:
-        cfg_train.loss.consistency_loss = str(wcfg["consistency_loss"])
-    if "consistency_beta" in wcfg:
-        cfg_train.loss.consistency_beta = float(wcfg["consistency_beta"])
-
     # augmentation
-    if "hflip_p" in wcfg:
-        cfg_train.augment.train.hflip_p = float(wcfg["hflip_p"])
-    if "vflip_p" in wcfg:
-        cfg_train.augment.train.vflip_p = float(wcfg["vflip_p"])
-    if "rotate90_p" in wcfg:
-        cfg_train.augment.train.rotate90_p = float(wcfg["rotate90_p"])
-    if "shift_scale_rotate_p" in wcfg:
-        cfg_train.augment.train.shift_scale_rotate_p = float(wcfg["shift_scale_rotate_p"])
-    if "color_jitter_p" in wcfg:
-        cfg_train.augment.train.color_jitter_p = float(wcfg["color_jitter_p"])
-    if "coarse_dropout_p" in wcfg:
-        cfg_train.augment.train.coarse_dropout_p = float(wcfg["coarse_dropout_p"])
-    if "tile_shuffle_p" in wcfg:
-        cfg_train.augment.train.tile_shuffle_p = float(wcfg["tile_shuffle_p"])
-    if "blur_noise_p" in wcfg:
-        cfg_train.augment.train.blur_noise_p = float(wcfg["blur_noise_p"])
+    for k in ["hflip_p","vflip_p","rotate90_p","shift_scale_rotate_p","color_jitter_p","coarse_dropout_p","tile_shuffle_p","blur_noise_p"]:
+        if k in wcfg:
+            setattr(cfg_train.augment.train, k, float(wcfg[k]))
 
-    # aux weights
+    # CutMix（cfg_train.mixing が無い場合もあるので作る）
+    if not hasattr(cfg_train, "mixing") or cfg_train.mixing is None:
+        cfg_train.mixing = OmegaConf.create({})
+    if "mixing_enabled" in wcfg:
+        cfg_train.mixing.enabled = bool(wcfg["mixing_enabled"])
+    if "mixing_p" in wcfg:
+        cfg_train.mixing.p = float(wcfg["mixing_p"])
+    # mode は cutmix固定にするならここで固定
+    cfg_train.mixing.mode = "cutmix"
+    if "cutmix_alpha" in wcfg:
+        cfg_train.mixing.cutmix_alpha = float(wcfg["cutmix_alpha"])
+    # （もし train_one_epoch が mixup/cutmix 共通形式なら以下も入れる）
+    cfg_train.mixing.mixup_alpha = float(getattr(cfg_train.mixing, "mixup_alpha", 1.0))
+    cfg_train.mixing.switch_prob = float(getattr(cfg_train.mixing, "switch_prob", 0.5))
+
+    # aux
     if hasattr(cfg_train, "aux"):
+        if "aux_warmup_epochs" in wcfg:
+            cfg_train.aux.warmup_epochs = int(wcfg["aux_warmup_epochs"])
         if "aux_species_w" in wcfg:
             cfg_train.aux.species.weight = float(wcfg["aux_species_w"])
+        if "aux_state_w" in wcfg:
+            # state セクションが無いときは作る
+            if not hasattr(cfg_train.aux, "state") or cfg_train.aux.state is None:
+                cfg_train.aux.state = OmegaConf.create({"enabled": True, "col": "State", "weight": 0.0, "label_smoothing": 0.0, "ignore_index": -1})
+            cfg_train.aux.state.weight = float(wcfg["aux_state_w"])
         if "aux_ndvi_w" in wcfg:
             cfg_train.aux.ndvi.weight = float(wcfg["aux_ndvi_w"])
         if "aux_height_w" in wcfg:
             cfg_train.aux.height.weight = float(wcfg["aux_height_w"])
-        if "aux_warmup_epochs" in wcfg:
-            cfg_train.aux.warmup_epochs = int(wcfg["aux_warmup_epochs"])
 
-    # backbone固定（安全のため強制）
+        if "aux_species_ls" in wcfg:
+            cfg_train.aux.species.label_smoothing = float(wcfg["aux_species_ls"])
+        if "aux_state_ls" in wcfg and hasattr(cfg_train.aux, "state"):
+            cfg_train.aux.state.label_smoothing = float(wcfg["aux_state_ls"])
+        if "aux_ndvi_loss" in wcfg:
+            cfg_train.aux.ndvi.loss = str(wcfg["aux_ndvi_loss"])
+        if "aux_ndvi_beta" in wcfg:
+            cfg_train.aux.ndvi.beta = float(wcfg["aux_ndvi_beta"])
+        if "aux_height_loss" in wcfg:
+            cfg_train.aux.height.loss = str(wcfg["aux_height_loss"])
+        if "aux_height_beta" in wcfg:
+            cfg_train.aux.height.beta = float(wcfg["aux_height_beta"])
+
+    # backbone固定 & components_mode固定
     cfg_train.model.backbone = "convnext_small"
+    cfg_train.model.components_mode = True  # ★3出力→加算5出力を保証
     cfg_train.ddp.enabled = False
-    OmegaConf.set_struct(cfg_train, True)
 
+    OmegaConf.set_struct(cfg_train, True)
 
 def make_run_name(cfg_train: DictConfig, fold: int, wcfg: Dict[str, Any]) -> str:
     """run名（長すぎ防止）。"""
@@ -406,21 +571,26 @@ def run_one_trial(base_cfg_path: Path) -> None:
     aux_enabled = bool(getattr(aux_cfg, "enabled", False)) if aux_cfg is not None else False
 
     sp_col = "Species"
+    st_col = "State"
     ndvi_col = "Pre_GSHH_NDVI"
     height_col = "Height_Ave_cm"
 
     if aux_cfg is not None:
         sp_cfg = getattr(aux_cfg, "species", None)
+        st_cfg = getattr(aux_cfg, "state", None)
         ndvi_cfg = getattr(aux_cfg, "ndvi", None)
         h_cfg = getattr(aux_cfg, "height", None)
         if sp_cfg is not None:
             sp_col = str(getattr(sp_cfg, "col", sp_col))
+        if st_cfg is not None:
+            st_col = str(getattr(st_cfg, "col", st_col))
         if ndvi_cfg is not None:
             ndvi_col = str(getattr(ndvi_cfg, "col", ndvi_col))
         if h_cfg is not None:
             height_col = str(getattr(h_cfg, "col", height_col))
 
     species_to_index = {}
+    states_to_index = {}
     num_species = 0
     ndvi_std = 1.0
     height_std = 1.0
@@ -430,6 +600,11 @@ def run_one_trial(base_cfg_path: Path) -> None:
             species_list = sorted(df[sp_col].dropna().astype(str).unique().tolist())
             species_to_index = {s: i for i, s in enumerate(species_list)}
             num_species = len(species_list)
+
+        if st_col in df.columns:
+            state_list = sorted(df[st_col].dropna().astype(str).unique().tolist())
+            states_to_index = {s: i for i, s in enumerate(state_list)}
+            num_states = len(state_list)
 
         if ndvi_col in df.columns:
             ndvi_s = pd.to_numeric(df[ndvi_col], errors="coerce").dropna()
@@ -532,6 +707,7 @@ def run_one_trial(base_cfg_path: Path) -> None:
         return_target=True,
         aux_cfg=aux_cfg,
         species_to_index=species_to_index,
+        states_to_index=states_to_index,
         aux_cols=None,
         use_split_crop=True,
         crop_size=int(cfg_train.crop_size),
@@ -547,6 +723,7 @@ def run_one_trial(base_cfg_path: Path) -> None:
         return_target=True,
         aux_cfg=aux_cfg,
         species_to_index=species_to_index,
+        states_to_index=states_to_index,
         aux_cols=None,
         use_split_crop=True,
         crop_size=int(cfg_train.crop_size),
@@ -602,8 +779,10 @@ def run_one_trial(base_cfg_path: Path) -> None:
         fuse=str(getattr(cfg_train.model, "fuse", "concat")),
         aux_cfg=aux_cfg,
         num_species=int(num_species),
+        num_states=int(num_states),
         aux_hidden_dim=int(getattr(cfg_train.model, "aux_hidden_dim", 256)),
         aux_dropout=float(getattr(cfg_train.model, "aux_dropout", 0.1)),
+        components_mode=True,            # ★安全
     ).to(device)
 
     if use_ddp:

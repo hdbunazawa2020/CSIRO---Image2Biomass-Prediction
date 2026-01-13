@@ -166,20 +166,25 @@ def main(cfg: DictConfig) -> None:
 
     # ★列名は先に確定させる（NameError防止）
     sp_col = "Species"
+    st_col = "State"
     ndvi_col = "Pre_GSHH_NDVI"
     height_col = "Height_Ave_cm"
     if aux_cfg is not None:
         sp_cfg = getattr(aux_cfg, "species", None)
+        st_cfg = getattr(aux_cfg, "states", None)
         ndvi_cfg = getattr(aux_cfg, "ndvi", None)
         h_cfg = getattr(aux_cfg, "height", None)
 
         sp_col = str(getattr(sp_cfg, "col", sp_col)) if sp_cfg is not None else sp_col
+        st_col = str(getattr(st_cfg, "col", st_col)) if st_cfg is not None else st_col
         ndvi_col = str(getattr(ndvi_cfg, "col", ndvi_col)) if ndvi_cfg is not None else ndvi_col
         height_col = str(getattr(h_cfg, "col", height_col)) if h_cfg is not None else height_col
 
-    # --- Species encoder / NDVI, Height std ---
+    # --- Species State encoder / NDVI, Height std ---
     species_to_index = {}
+    states_to_index = {}
     num_species = 0
+    num_states = 0
     ndvi_std = 1.0
     height_std = 1.0
     if aux_enabled:
@@ -192,6 +197,16 @@ def main(cfg: DictConfig) -> None:
             print(f"[WARN] aux.species.col='{sp_col}' not found in df.columns -> species head will be ignored.")
             species_to_index = {}
             num_species = 0
+
+        # --- State encoder（全データから作る：foldでズレないように）---
+        if st_col in df.columns:
+            states_list = sorted(df[st_col].dropna().astype(str).unique().tolist())
+            states_to_index = {s: i for i, s in enumerate(states_list)}
+            num_states = len(states_list)
+        else:
+            print(f"[WARN] aux.states.col='{st_col}' not found in df.columns -> states head will be ignored.")
+            states_to_index = {}
+            num_states = 0
 
         # --- NDVI std（欠損/文字列混入に強い）---
         if ndvi_col in df.columns:
@@ -219,7 +234,7 @@ def main(cfg: DictConfig) -> None:
 
     if is_main:
         print("[INFO] aux_enabled:", aux_enabled)
-        print("[INFO] aux columns:", {"species": sp_col, "ndvi": ndvi_col, "height": height_col})
+        print("[INFO] aux columns:", {"species": sp_col, "states": st_col, "ndvi": ndvi_col, "height": height_col})
         print("[INFO] num_species:", num_species)
         print("[INFO] ndvi_std:", ndvi_std, "height_std:", height_std)
         
@@ -287,7 +302,7 @@ def main(cfg: DictConfig) -> None:
             use_log1p_target=bool(cfg_train.use_log1p_target),
             return_target=True,
             # aux
-            aux_cfg=aux_cfg, species_to_index=species_to_index, aux_cols=None,
+            aux_cfg=aux_cfg, species_to_index=species_to_index, states_to_index=states_to_index, aux_cols=None,
             # split/crop
             use_split_crop=True, crop_size=int(cfg_train.crop_size), assume_size=(1000, 2000),
         )
@@ -299,7 +314,7 @@ def main(cfg: DictConfig) -> None:
             use_log1p_target=bool(cfg_train.use_log1p_target),
             return_target=True,
             # aux
-            aux_cfg=aux_cfg, species_to_index=species_to_index, aux_cols=None,
+            aux_cfg=aux_cfg, species_to_index=species_to_index, states_to_index=states_to_index, aux_cols=None,
             # split/crop
             use_split_crop=True, crop_size=int(cfg_train.crop_size), assume_size=(1000, 2000),
         )
@@ -349,6 +364,7 @@ def main(cfg: DictConfig) -> None:
             # aux
             aux_cfg=aux_cfg,
             num_species=num_species,
+            num_states=num_states,
             aux_hidden_dim=int(getattr(cfg_train.model, "aux_hidden_dim", 256)),
             aux_dropout=float(getattr(cfg_train.model, "aux_dropout", 0.1)),
             components_mode=bool(getattr(cfg_train.model, "components_mode", True)),
