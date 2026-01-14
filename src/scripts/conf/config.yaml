@@ -11,3 +11,4 @@ defaults:
 - 103_train_splitcrop_aux_regressor: 103_train_splitcrop_aux_regressor_default
 - 203_wandb_splitcropauxregressor: 203_wandb_splitcropauxregressor_default
 - 104_train_dinov2: 104_train_dinov2_default
+- 105_train_dinov3: 105_train_dinov3_default

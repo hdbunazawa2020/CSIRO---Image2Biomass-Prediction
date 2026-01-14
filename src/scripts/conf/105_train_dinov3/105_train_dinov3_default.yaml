@@ -1,0 +1,109 @@
+# ==========
+# general
+# ==========
+exp: 105_train_exp048 # TODO: 毎回、実験の連番を変える
+seed: 1129 # 82947501
+debug: false
+device: cuda
+use_amp: true
+num_workers: 12
+pin_memory: true
+persistent_workers: true
+# WandB
+use_wandb: true
+competition: Csiro-Image2BiomassPrediction
+author: hidebu
+wandb_log_interval_steps: 100
+# DDP
+ddp:
+  enabled: true
+  backend: nccl
+  find_unused_parameters: true
+
+use_tqdm: true
+
+# ==========
+# paths
+# ==========
+input_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/raw
+pp_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/data/processed
+preprocess_ver: 010_preprocess_from_publicnotebook
+pivot_csv_name: df_pivot.csv
+
+output_dir: /mnt/nfs/home/hidebu/study/CSIRO---Image2Biomass-Prediction/experiments
+
+# ==========
+# CV
+# ==========
+fold_col: Fold
+n_folds: 5
+folds: [0,1,2,3,4]
+
+val_tta_times: 1  # 0: orig, 1: hflip, 2: vflip, 3: rot90
+
+# =======================================
+# targets (order MUST match metric.py)
+# =======================================
+# target_cols:
+#   - Dry_Clover_g
+#   - Dry_Dead_g
+#   - Dry_Green_g
+#   - Dry_Total_g
+#   - GDM_g
+# n_targets: 3
+# targets_configs:
+#   - Dry_Clover_g
+#   - Dry_Dead_g
+#   - Dry_Green_g
+r2_weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+loss_weights: [0.1, 0.1, 0.1, 0.0, 0.0]
+all_target_cols:
+  - Dry_Clover_g
+  - Dry_Dead_g
+  - Dry_Green_g
+  - Dry_Total_g
+  - GDM_g
+
+
+# =======================
+# image / augmentation
+# =======================
+img_h: 512 # 448
+img_w: 512 # 448
+in_chans: 3
+
+# ==========
+# training
+# ==========
+train:
+  epochs: 1
+  warmup_epochs: 3
+  freeze_epochs: 0
+  batch_size: 1
+  lr_backbone: 1e-3
+  lr_rest: 1e-3
+train_backbone: true # false
+grad_acc: 4
+patience: 5
+
+# ==========
+# model
+# ==========
+model:
+  backbone: vit_huge_plus_patch16_dinov3.lvd1689m # facebook/dinov2-large
+  pretrained: true
+  backbone_path: null  # /path/to/dinov3_vit_huge_pretrain.pth  # TODO: 必要ならば指定
+  dino_grad_checkpointing: false
+pretrained_dir: null  # /path/to/pretrained/models  # TODO: 必要ならば指定
+ema_decay: 0.9
+
+# =========================
+# optimizer & scheduler
+# =========================
+optimizer:
+  name: adamw
+  weight_decay: 1e-2
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: cosine_annealing
